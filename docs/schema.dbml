@@ -1,0 +1,206 @@
+// ==============================================================================
+// SCHEDULA - HOSPITAL MANAGEMENT SYSTEM (SCHEDULE PROJECT MODULE)
+// DBML Schema for dbdiagram.io
+// PearlThoughts Internship Programme
+// ==============================================================================
+
+Project schedula_hms {
+  database_type: 'PostgreSQL'
+  Note: '''
+    # Schedula - Schedule Project Module
+    Relational ER Schema covering 5 core modules:
+    1. User Module (Authentication, OAuth, and roles)
+    2. Patient Module (Patient profiles & medical baseline)
+    3. Doctor Module (Doctor credentials & specializations)
+    4. Availability Module (Weekly recurring schedules & elastic slots)
+    5. Appointment Module (Bookings & reschedule audit trail)
+  '''
+}
+
+// ==============================================================================
+// 1. USER MODULE
+// ==============================================================================
+Table users {
+  id uuid [pk, default: `gen_random_uuid()`, note: 'Primary Key']
+  email varchar(255) [unique, not null, note: 'Unique account login email']
+  phone varchar(20) [note: 'Contact telephone']
+  password_hash varchar(255) [note: 'Hashed password; nullable for Google OAuth']
+  role varchar(20) [not null, note: 'DOCTOR | PATIENT | ADMIN']
+  auth_provider varchar(20) [not null, default: 'LOCAL', note: 'LOCAL | GOOGLE']
+  is_verified boolean [not null, default: false, note: 'Identity verification flag']
+  created_at timestamptz [not null, default: `now()`, note: 'Record creation timestamp']
+  updated_at timestamptz [not null, default: `now()`, note: 'Record update timestamp']
+
+  Note: 'Central authentication authority decoupled from domain profiles'
+}
+
+Table verification_tokens {
+  id uuid [pk, default: `gen_random_uuid()`, note: 'Primary Key']
+  user_id uuid [not null, note: 'FK to users.id']
+  token varchar(255) [not null, note: 'OTP code or secure token hash']
+  token_type varchar(50) [not null, note: 'EMAIL_VERIFY | OTP_LOGIN | PASSWORD_RESET']
+  expires_at timestamptz [not null, note: 'Expiration timestamp']
+  is_used boolean [not null, default: false, note: 'Single-use consumption flag']
+  created_at timestamptz [not null, default: `now()`, note: 'Created timestamp']
+
+  Note: 'Token management for OTPs, email confirmation, and password reset'
+}
+
+// ==============================================================================
+// 2. PATIENT MODULE
+// ==============================================================================
+Table patients {
+  id uuid [pk, default: `gen_random_uuid()`, note: 'Primary Key']
+  user_id uuid [unique, not null, note: '1:1 link to users.id']
+  first_name varchar(100) [not null, note: 'Given name']
+  last_name varchar(100) [not null, note: 'Family name']
+  date_of_birth date [not null, note: 'Date of birth']
+  gender varchar(20) [not null, note: 'MALE | FEMALE | OTHER']
+  blood_group varchar(5) [note: 'Blood group category (e.g. A+, O+, etc.)']
+  emergency_contact varchar(20) [note: 'Emergency contact phone']
+  created_at timestamptz [not null, default: `now()`, note: 'Record creation timestamp']
+  updated_at timestamptz [not null, default: `now()`, note: 'Record update timestamp']
+
+  Note: 'Patient clinical demographics and emergency details'
+}
+
+// ==============================================================================
+// 3. DOCTOR MODULE
+// ==============================================================================
+Table specializations {
+  id uuid [pk, default: `gen_random_uuid()`, note: 'Primary Key']
+  name varchar(100) [unique, not null, note: 'Medical specialty name (e.g. Cardiology)']
+  description text [note: 'Specialty overview and scope']
+
+  Note: 'Normalized medical specializations catalog'
+}
+
+Table doctors {
+  id uuid [pk, default: `gen_random_uuid()`, note: 'Primary Key']
+  user_id uuid [unique, not null, note: '1:1 link to users.id']
+  specialization_id uuid [note: 'FK to specializations.id']
+  first_name varchar(100) [not null, note: 'Given name']
+  last_name varchar(100) [not null, note: 'Family name']
+  license_number varchar(50) [unique, not null, note: 'Medical council license registration']
+  experience_years int [not null, default: 0, note: 'Years of medical practice']
+  consultation_fee decimal(10,2) [not null, default: 0.00, note: 'Consultation fee per booking']
+  bio text [note: 'Doctor biography and background']
+  rating_average decimal(3,2) [not null, default: 0.00, note: 'Average feedback rating (0.0 to 5.0)']
+  is_approved boolean [not null, default: false, note: 'Hospital administrator verification flag']
+  created_at timestamptz [not null, default: `now()`, note: 'Record creation timestamp']
+  updated_at timestamptz [not null, default: `now()`, note: 'Record update timestamp']
+
+  Note: 'Doctor professional credentials, medical license, and consultation fees'
+}
+
+// ==============================================================================
+// 4. AVAILABILITY MODULE
+// ==============================================================================
+Table doctor_availability {
+  id uuid [pk, default: `gen_random_uuid()`, note: 'Primary Key']
+  doctor_id uuid [not null, note: 'FK to doctors.id']
+  day_of_week smallint [not null, note: '0 = Sunday to 6 = Saturday']
+  start_time time [not null, note: 'Consultation window start time']
+  end_time time [not null, note: 'Consultation window end time']
+  slot_duration_minutes int [not null, default: 30, note: 'Standard consultation length (min)']
+  is_active boolean [not null, default: true, note: 'Active/inactive schedule toggle']
+  created_at timestamptz [not null, default: `now()`, note: 'Created timestamp']
+
+  Note: 'Doctor weekly recurring availability rules'
+}
+
+Table time_slots {
+  id uuid [pk, default: `gen_random_uuid()`, note: 'Primary Key']
+  doctor_id uuid [not null, note: 'FK to doctors.id']
+  availability_id uuid [note: 'FK to doctor_availability.id']
+  slot_date date [not null, note: 'Calendar date for slot']
+  start_time time [not null, note: 'Slot start time']
+  end_time time [not null, note: 'Slot end time']
+  slot_type varchar(30) [not null, default: 'REGULAR', note: 'REGULAR | ELASTIC_BUFFER']
+  max_capacity int [not null, default: 1, note: 'Maximum concurrent bookings (Elastic scheduling)']
+  current_bookings int [not null, default: 0, note: 'Active bookings count']
+  status varchar(20) [not null, default: 'AVAILABLE', note: 'AVAILABLE | BOOKED | BLOCKED']
+  created_at timestamptz [not null, default: `now()`, note: 'Created timestamp']
+
+  Note: 'Discrete calendar booking slots supporting elastic scheduling'
+}
+
+// ==============================================================================
+// 5. APPOINTMENT MODULE
+// ==============================================================================
+Table appointments {
+  id uuid [pk, default: `gen_random_uuid()`, note: 'Primary Key']
+  patient_id uuid [not null, note: 'FK to patients.id']
+  doctor_id uuid [not null, note: 'FK to doctors.id']
+  slot_id uuid [not null, note: 'FK to time_slots.id']
+  appointment_date date [not null, note: 'Scheduled appointment date']
+  start_time time [not null, note: 'Scheduled start time']
+  end_time time [not null, note: 'Scheduled end time']
+  status varchar(30) [not null, default: 'SCHEDULED', note: 'SCHEDULED | CONFIRMED | COMPLETED | CANCELLED | RESCHEDULED']
+  reason text [note: 'Patient symptoms / notes']
+  cancellation_reason text [note: 'Reason if appointment is cancelled']
+  created_at timestamptz [not null, default: `now()`, note: 'Record creation timestamp']
+  updated_at timestamptz [not null, default: `now()`, note: 'Record update timestamp']
+
+  Note: 'Core consultation booking transaction and lifecycle state machine'
+}
+
+Table reschedule_history {
+  id uuid [pk, default: `gen_random_uuid()`, note: 'Primary Key']
+  appointment_id uuid [not null, note: 'FK to appointments.id']
+  previous_slot_id uuid [note: 'FK to old time_slots.id']
+  new_slot_id uuid [note: 'FK to new time_slots.id']
+  rescheduled_by varchar(20) [not null, note: 'PATIENT | DOCTOR']
+  reschedule_reason text [note: 'Reason for rescheduling']
+  rescheduled_at timestamptz [not null, default: `now()`, note: 'Timestamp of reschedule event']
+
+  Note: 'Historical audit trail for appointment rescheduling'
+}
+
+// ==============================================================================
+// RELATIONSHIPS & FOREIGN KEYS
+// ==============================================================================
+Ref: users.id < verification_tokens.user_id [delete: cascade]
+Ref: users.id - patients.user_id [delete: cascade]
+Ref: users.id - doctors.user_id [delete: cascade]
+
+Ref: specializations.id < doctors.specialization_id [delete: restrict]
+
+Ref: doctors.id < doctor_availability.doctor_id [delete: cascade]
+Ref: doctors.id < time_slots.doctor_id [delete: cascade]
+Ref: doctor_availability.id < time_slots.availability_id [delete: set null]
+
+Ref: patients.id < appointments.patient_id [delete: cascade]
+Ref: doctors.id < appointments.doctor_id [delete: cascade]
+Ref: time_slots.id < appointments.slot_id [delete: restrict]
+
+Ref: appointments.id < reschedule_history.appointment_id [delete: cascade]
+Ref: time_slots.id < reschedule_history.previous_slot_id [delete: set null]
+Ref: time_slots.id < reschedule_history.new_slot_id [delete: set null]
+
+// ==============================================================================
+// TABLE GROUPS (Visual module organization on dbdiagram.io)
+// ==============================================================================
+TableGroup Module_1_User [color: #818cf8] {
+  users
+  verification_tokens
+}
+
+TableGroup Module_2_Patient [color: #34d399] {
+  patients
+}
+
+TableGroup Module_3_Doctor [color: #fbbf24] {
+  doctors
+  specializations
+}
+
+TableGroup Module_4_Availability [color: #f472b6] {
+  doctor_availability
+  time_slots
+}
+
+TableGroup Module_5_Appointment [color: #60a5fa] {
+  appointments
+  reschedule_history
+}

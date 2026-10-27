@@ -170,20 +170,36 @@ erDiagram
 
 ```
 .
+├── Schedula_Schedule_Module_ERD.pdf   # Standalone print-ready PDF deliverable
 ├── README.md                          # Main project summary & ER diagram
+├── package.json                       # Package manifest
+├── server.js                          # Local viewer server
+├── generate_erd_pdf.py                # Python PDF generation script
 └── docs/
-    ├── ERD_Schedule_Module.md          # Full data dictionary & 3NF technical spec
-    └── erd_preview.html                # Interactive viewer with pan/zoom & SVG export
+    ├── schema.dbml                    # DBML schema code for dbdiagram.io
+    ├── ERD_Schedule_Module.md         # Full data dictionary & 3NF technical spec
+    ├── erd_preview.html               # Interactive viewer with pan/zoom & SVG export
+    └── erd_print.html                 # Print-optimized HTML template
 ```
 
 ---
 
 ## 🔍 How to View & Present the ER Diagram
 
-1. **Interactive Browser View**:
+1. **dbdiagram.io (Interactive Online ERD)**:
+   - Go to **[dbdiagram.io](https://dbdiagram.io)**.
+   - Click **+ New Diagram**.
+   - Copy the contents of [`docs/schema.dbml`](./docs/schema.dbml) and paste it into the editor.
+   - The diagram will automatically render with color-coded module groups, cardinalities, and field notes!
+
+2. **Standalone PDF Document**:
+   - Open [`Schedula_Schedule_Module_ERD.pdf`](./Schedula_Schedule_Module_ERD.pdf) in any PDF reader for high-resolution 300 DPI vector rendering.
+
+3. **Interactive Local Browser View**:
    - Double-click or open `docs/erd_preview.html` in any browser.
    - Use the pan/zoom controls or mouse wheel to navigate, and click **Export SVG** to save a vector diagram for presentation slides or reports.
-2. **Markdown / Obsidian View**:
+
+4. **Markdown / Obsidian View**:
    - Open `docs/ERD_Schedule_Module.md` in GitHub, Obsidian, or VS Code Markdown Preview. Mermaid diagrams render natively.
 
 ---
