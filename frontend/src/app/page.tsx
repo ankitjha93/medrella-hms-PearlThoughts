@@ -574,13 +574,12 @@ export default function HomePage() {
       <footer className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 border-t border-slate-200">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8 pb-8">
           <div className="md:col-span-2 space-y-3">
-            <div className="flex items-center space-x-2">
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-600 flex items-center justify-center font-black text-white text-base">
-                M
+            <div className="flex items-center space-x-2.5">
+              <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-emerald-500 via-teal-500 to-cyan-500 flex items-center justify-center shadow-sm">
+                <HeartPulse className="w-4 h-4 text-white" />
               </div>
-              <span className="font-extrabold text-lg text-slate-900">Medrella</span>
-              <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800">
-                Schedula HMS
+              <span className="font-extrabold text-lg text-slate-900 tracking-tight">
+                Medrella<span className="text-emerald-500">.</span>
               </span>
             </div>
             <p className="text-xs text-slate-500 max-w-sm leading-relaxed">
