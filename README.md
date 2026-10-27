@@ -1,112 +1,49 @@
 # Schedula - Hospital Management System (Schedule Project Module)
 
-Welcome to the **Schedule Project Module** ER diagram for **Schedula**, developed for the **PearlThoughts Internship Programme**.
+Welcome to the **Schedule Project Module** repository for **Schedula**, developed for the **PearlThoughts Internship Programme**.
 
-This ER diagram covers the **five project modules in exact sequential order**, with comprehensive attributes inside each entity:
-
-1. **User Module** (`USERS`)
-2. **Patient Module** (`PATIENTS`)
-3. **Doctor Module** (`DOCTORS`)
-4. **Availability Module** (`DOCTOR_AVAILABILITY`)
-5. **Appointment Module** (`APPOINTMENTS`)
+This branch (`feature/schedule-er-diagram`) contains the complete ER Diagram specification, the Loom video walkthrough, and a starter **Next.js 15** frontend application.
 
 ---
 
-## 🗺️ Entity-Relationship Diagram
+## 📹 Video Walkthrough
 
-```mermaid
-erDiagram
-    %% ==========================================
-    %% 1. USER MODULE
-    %% ==========================================
-    USERS {
-        uuid id PK "Primary Key"
-        varchar email "Unique login email"
-        varchar phone "Contact telephone"
-        varchar password_hash "Hashed password"
-        varchar role "DOCTOR | PATIENT | ADMIN"
-        varchar auth_provider "LOCAL | GOOGLE"
-        boolean is_verified "Email/OTP verified flag"
-        timestamp created_at "Created timestamp"
-        timestamp updated_at "Updated timestamp"
-    }
+Watch the complete explanation of the Schedule Project Module ER Diagram on Loom:  
+👉 **[Watch Video Explanation on Loom](https://www.loom.com/share/9fd476977c814355898fb42bc4f835ad)**
 
-    %% ==========================================
-    %% 2. PATIENT MODULE
-    %% ==========================================
-    PATIENTS {
-        uuid id PK "Primary Key"
-        uuid user_id FK "1:1 link to USERS(id)"
-        varchar first_name "Given name"
-        varchar last_name "Family name"
-        date date_of_birth "Birth date"
-        varchar gender "MALE | FEMALE | OTHER"
-        varchar blood_group "Blood type (A+, O+, etc.)"
-        varchar emergency_contact "Emergency telephone"
-        text address "Residential address"
-        text medical_history "Allergies / medical notes"
-        timestamp created_at "Registration timestamp"
-    }
+---
 
-    %% ==========================================
-    %% 3. DOCTOR MODULE
-    %% ==========================================
-    DOCTORS {
-        uuid id PK "Primary Key"
-        uuid user_id FK "1:1 link to USERS(id)"
-        varchar first_name "Given name"
-        varchar last_name "Family name"
-        varchar specialization "Medical specialty"
-        varchar license_number "Medical council license"
-        int experience_years "Years of medical practice"
-        decimal consultation_fee "Fee per booking"
-        text bio "Profile bio"
-        decimal rating_average "Average ratings (0.0-5.0)"
-        boolean is_approved "Admin verification flag"
-        timestamp created_at "Onboarding timestamp"
-    }
+## 🗺️ Entity-Relationship Diagram (dbdiagram.io)
 
-    %% ==========================================
-    %% 4. AVAILABILITY MODULE
-    %% ==========================================
-    DOCTOR_AVAILABILITY {
-        uuid id PK "Primary Key"
-        uuid doctor_id FK "Reference to DOCTORS(id)"
-        varchar day_of_week "MONDAY, TUESDAY, etc."
-        time start_time "Shift start time"
-        time end_time "Shift end time"
-        int slot_duration_minutes "Slot duration (default 30)"
-        int max_capacity "Elastic capacity per slot"
-        boolean is_active "Active toggle"
-        timestamp created_at "Created timestamp"
-    }
+Below is the verified ER Diagram covering the **5 core modules in sequential order**:
 
-    %% ==========================================
-    %% 5. APPOINTMENT MODULE
-    %% ==========================================
-    APPOINTMENTS {
-        uuid id PK "Primary Key"
-        uuid patient_id FK "Reference to PATIENTS(id)"
-        uuid doctor_id FK "Reference to DOCTORS(id)"
-        date appointment_date "Scheduled date"
-        time start_time "Start time"
-        time end_time "End time"
-        varchar status "SCHEDULED | CONFIRMED | COMPLETED | CANCELLED | RESCHEDULED"
-        text reason "Chief complaint / symptoms"
-        text cancellation_reason "Reason if cancelled"
-        text reschedule_reason "Reason if rescheduled"
-        timestamp created_at "Booking timestamp"
-        timestamp updated_at "Status update timestamp"
-    }
+![Schedula ER Diagram](./docs/schedula_er_diagram.png)
 
-    %% ==========================================
-    %% RELATIONSHIPS & CARDINALITY
-    %% ==========================================
-    USERS ||--|| PATIENTS : "identifies (1:1)"
-    USERS ||--|| DOCTORS : "identifies (1:1)"
-    DOCTORS ||--o{ DOCTOR_AVAILABILITY : "configures (1:N)"
-    PATIENTS ||--o{ APPOINTMENTS : "books (1:N)"
-    DOCTORS ||--o{ APPOINTMENTS : "attends (1:N)"
+### Core Modules in Order:
+1. **User Module** (`users`): Authentication, Google OAuth, and role management (`DOCTOR`, `PATIENT`, `ADMIN`).
+2. **Patient Module** (`patients`): Patient clinical demographics, emergency contact, and baseline medical history (`1:1` with `users`).
+3. **Doctor Module** (`doctors`): Medical credentials, license verification, consultation fees, and ratings (`1:1` with `users`).
+4. **Availability Module** (`doctor_availability`): Recurring shift windows and elastic buffer capacity for doctors (`1:N` with `doctors`).
+5. **Appointment Module** (`appointments`): Booking transaction linking patient and doctor with cancellation & reschedule tracking.
+
+---
+
+## 💻 Next.js 15 Frontend Application
+
+A modern "Hello World" Next.js web application is set up in [`frontend/`](./frontend).
+
+### Running Locally:
+```bash
+cd frontend
+npm install
+npm run dev
+```
+Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+### Building for Production:
+```bash
+cd frontend
+npm run build
 ```
 
 ---
@@ -116,7 +53,7 @@ erDiagram
 1. Go to **[dbdiagram.io](https://dbdiagram.io)**.
 2. Click **+ New Diagram**.
 3. Open [`docs/schema.dbml`](./docs/schema.dbml), copy the DBML code, and paste it into the editor.
-4. The diagram renders immediately with all 5 modules, fields, notes, and relationships!
+4. The diagram renders immediately with all 5 entities and relationships!
 
 ---
 
@@ -132,9 +69,14 @@ The high-resolution vector PDF is saved at:
 ```
 .
 ├── Schedula_Schedule_Module_ERD.pdf   # High-resolution vector PDF deliverable
-├── README.md                          # Repository summary & Mermaid ERD
+├── README.md                          # Repository summary, ER diagram & Loom link
 ├── generate_erd_pdf.py                # Python PDF generation script
+├── frontend/                          # Next.js 15 Hello World application
+│   ├── src/app/page.tsx               # Landing page with video & module links
+│   ├── package.json
+│   └── tsconfig.json
 └── docs/
+    ├── schedula_er_diagram.png        # dbdiagram.io exported ER Diagram image
     ├── schema.dbml                    # DBML schema code for dbdiagram.io
     ├── ERD_Schedule_Module.md         # Full specification & data dictionary
     ├── erd_preview.html               # Interactive browser preview
