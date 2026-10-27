@@ -3,7 +3,7 @@ import path from 'path';
 import { Doctor, Appointment, DoctorAvailability, TimeSlot, AppointmentStatus } from './types';
 import { INITIAL_DOCTORS, INITIAL_APPOINTMENTS, INITIAL_AVAILABILITIES } from './mockData';
 
-const DATA_DIR = path.join(process.cwd(), '.data');
+const DATA_DIR = process.env.VERCEL ? '/tmp' : path.join(process.cwd(), '.data');
 const DB_FILE = path.join(DATA_DIR, 'db.json');
 
 interface DatabaseSchema {
