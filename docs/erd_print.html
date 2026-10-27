@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Schedula - Schedule Project Module ER Diagram</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <style>
+    @page {
+      size: A4 landscape;
+      margin: 8mm;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #ffffff;
+      color: #0f172a;
+      line-height: 1.4;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    .no-print {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #0f172a;
+      color: #ffffff;
+      padding: 0.75rem 1.5rem;
+      border-bottom: 2px solid #38bdf8;
+    }
+
+    .btn {
+      background: #0284c7;
+      color: #ffffff;
+      border: none;
+      padding: 0.5rem 1rem;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 0.85rem;
+      cursor: pointer;
+    }
+
+    @media print {
+      .no-print {
+        display: none !important;
+      }
+      body {
+        background: #ffffff !important;
+      }
+    }
+
+    .page {
+      padding: 10px;
+      page-break-after: always;
+      position: relative;
+      min-height: 96vh;
+    }
+
+    .page:last-child {
+      page-break-after: avoid;
+    }
+
+    .header {
+      border-bottom: 2px solid #0284c7;
+      padding-bottom: 8px;
+      margin-bottom: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+    }
+
+    .header-title h1 {
+      font-size: 1.4rem;
+      font-weight: 800;
+      color: #0f172a;
+      letter-spacing: -0.02em;
+    }
+
+    .header-title p {
+      font-size: 0.8rem;
+      color: #64748b;
+      font-weight: 500;
+    }
+
+    .badge-track {
+      background: #e0f2fe;
+      color: #0284c7;
+      padding: 0.25rem 0.65rem;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      border: 1px solid #bae6fd;
+    }
+
+    /* Module Navigation Badges */
+    .modules-banner {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .module-item {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-left: 4px solid #0284c7;
+      padding: 6px 10px;
+      border-radius: 4px;
+    }
+
+    .module-item.m1 { border-left-color: #6366f1; }
+    .module-item.m2 { border-left-color: #10b981; }
+    .module-item.m3 { border-left-color: #f59e0b; }
+    .module-item.m4 { border-left-color: #ec4899; }
+    .module-item.m5 { border-left-color: #3b82f6; }
+
+    .module-item strong {
+      display: block;
+      font-size: 0.75rem;
+      color: #0f172a;
+    }
+
+    .module-item span {
+      font-size: 0.68rem;
+      color: #64748b;
+    }
+
+    /* Diagram Area */
+    .diagram-box {
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      background: #fafafa;
+      padding: 10px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+      min-height: 520px;
+    }
+
+    #mermaid-render {
+      width: 100%;
+      display: flex;
+      justify-content: center;
+    }
+
+    #mermaid-render svg {
+      width: 100% !important;
+      max-width: 100% !important;
+      height: auto !important;
+    }
+
+    /* Data Dictionary & Details Tables */
+    h2 {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: #0f172a;
+      margin: 14px 0 8px 0;
+      border-left: 4px solid #0284c7;
+      padding-left: 8px;
+    }
+
+    .spec-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .spec-card {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      padding: 10px;
+    }
+
+    .spec-card h3 {
+      font-size: 0.85rem;
+      font-weight: 700;
+      margin-bottom: 4px;
+      color: #1e293b;
+    }
+
+    .spec-card p {
+      font-size: 0.75rem;
+      color: #475569;
+      line-height: 1.4;
+    }
+
+    table.data-dict {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.72rem;
+      margin-top: 6px;
+      background: #ffffff;
+    }
+
+    table.data-dict th {
+      background: #0f172a;
+      color: #ffffff;
+      padding: 6px 8px;
+      text-align: left;
+      font-weight: 600;
+      border: 1px solid #334155;
+    }
+
+    table.data-dict td {
+      padding: 5px 8px;
+      border: 1px solid #e2e8f0;
+      color: #334155;
+    }
+
+    table.data-dict tr:nth-child(even) td {
+      background: #f8fafc;
+    }
+
+    .font-mono {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.7rem;
+    }
+
+    .footer {
+      position: absolute;
+      bottom: 6px;
+      left: 10px;
+      right: 10px;
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.68rem;
+      color: #94a3b8;
+      border-top: 1px solid #e2e8f0;
+      padding-top: 4px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="no-print">
+    <div>
+      <strong>Schedula ER Diagram &bull; PDF Print Preview</strong>
+      <span style="font-size: 0.8rem; color: #94a3b8; margin-left: 0.5rem;">(Optimized for A4 Landscape)</span>
+    </div>
+    <button class="btn" onclick="window.print()">Print / Save as PDF</button>
+  </div>
+
+  <!-- PAGE 1: FULL PAGE ER DIAGRAM -->
+  <div class="page">
+    <div class="header">
+      <div class="header-title">
+        <h1>Schedula &bull; Hospital Management System</h1>
+        <p>Schedule Project Module &bull; Complete Entity-Relationship (ER) Diagram</p>
+      </div>
+      <div class="badge-track">PearlThoughts Internship Project</div>
+    </div>
+
+    <div class="modules-banner">
+      <div class="module-item m1">
+        <strong>1. User Module</strong>
+        <span>USERS, VERIFICATION_TOKENS</span>
+      </div>
+      <div class="module-item m2">
+        <strong>2. Patient Module</strong>
+        <span>PATIENTS (1:1 with USERS)</span>
+      </div>
+      <div class="module-item m3">
+        <strong>3. Doctor Module</strong>
+        <span>DOCTORS, SPECIALIZATIONS</span>
+      </div>
+      <div class="module-item m4">
+        <strong>4. Availability Module</strong>
+        <span>AVAILABILITY, TIME_SLOTS</span>
+      </div>
+      <div class="module-item m5">
+        <strong>5. Appointment Module</strong>
+        <span>APPOINTMENTS, RESCHEDULE_HIST</span>
+      </div>
+    </div>
+
+    <div class="diagram-box">
+      <div id="mermaid-render">
+        <pre class="mermaid">
+erDiagram
+    %% ==========================================
+    %% 1. USER MODULE
+    %% ==========================================
+    USERS {
+        uuid id PK "Primary Key"
+        varchar email "Unique login email"
+        varchar phone "Contact phone"
+        varchar password_hash "Hashed password"
+        varchar role "DOCTOR | PATIENT | ADMIN"
+        varchar auth_provider "LOCAL | GOOGLE"
+        boolean is_verified "Verified status"
+        timestamp created_at "Created at"
+        timestamp updated_at "Updated at"
+    }
+
+    VERIFICATION_TOKENS {
+        uuid id PK "Primary Key"
+        uuid user_id FK "Reference to USERS"
+        varchar token "OTP / Token"
+        varchar token_type "EMAIL_VERIFY | OTP"
+        timestamp expires_at "Expires at"
+        boolean is_used "Consumed flag"
+        timestamp created_at "Created at"
+    }
+
+    %% ==========================================
+    %% 2. PATIENT MODULE
+    %% ==========================================
+    PATIENTS {
+        uuid id PK "Primary Key"
+        uuid user_id FK "1:1 link to USERS"
+        varchar first_name "First name"
+        varchar last_name "Last name"
+        date date_of_birth "Birth date"
+        varchar gender "MALE | FEMALE"
+        varchar blood_group "Blood type"
+        varchar emergency_contact "Emergency phone"
+        timestamp created_at "Created at"
+        timestamp updated_at "Updated at"
+    }
+
+    %% ==========================================
+    %% 3. DOCTOR MODULE
+    %% ==========================================
+    SPECIALIZATIONS {
+        uuid id PK "Primary Key"
+        varchar name "Specialty name"
+        varchar description "Description"
+    }
+
+    DOCTORS {
+        uuid id PK "Primary Key"
+        uuid user_id FK "1:1 link to USERS"
+        uuid specialization_id FK "Reference to SPECIALIZATIONS"
+        varchar first_name "First name"
+        varchar last_name "Last name"
+        varchar license_number "License number"
+        int experience_years "Practice years"
+        decimal consultation_fee "Consultation fee"
+        text bio "Profile bio"
+        decimal rating_average "Average ratings"
+        boolean is_approved "Admin approval"
+        timestamp created_at "Created at"
+        timestamp updated_at "Updated at"
+    }
+
+    %% ==========================================
+    %% 4. AVAILABILITY MODULE
+    %% ==========================================
+    DOCTOR_AVAILABILITY {
+        uuid id PK "Primary Key"
+        uuid doctor_id FK "Reference to DOCTORS"
+        int day_of_week "0=Sun to 6=Sat"
+        time start_time "Start time"
+        time end_time "End time"
+        int slot_duration_minutes "Duration (min)"
+        boolean is_active "Active toggle"
+        timestamp created_at "Created at"
+    }
+
+    TIME_SLOTS {
+        uuid id PK "Primary Key"
+        uuid doctor_id FK "Reference to DOCTORS"
+        uuid availability_id FK "Parent rule"
+        date slot_date "Calendar date"
+        time start_time "Start time"
+        time end_time "End time"
+        varchar slot_type "REGULAR | ELASTIC"
+        int max_capacity "Capacity limit"
+        int current_bookings "Booked count"
+        varchar status "AVAILABLE | BOOKED"
+        timestamp created_at "Created at"
+    }
+
+    %% ==========================================
+    %% 5. APPOINTMENT MODULE
+    %% ==========================================
+    APPOINTMENTS {
+        uuid id PK "Primary Key"
+        uuid patient_id FK "Attending patient"
+        uuid doctor_id FK "Attending doctor"
+        uuid slot_id FK "Reserved slot"
+        date appointment_date "Scheduled date"
+        time start_time "Start time"
+        time end_time "End time"
+        varchar status "SCHEDULED | CONFIRMED | COMPLETED | CANCELLED"
+        text reason "Chief complaint"
+        text cancellation_reason "Cancellation reason"
+        timestamp created_at "Created at"
+        timestamp updated_at "Updated at"
+    }
+
+    RESCHEDULE_HISTORY {
+        uuid id PK "Primary Key"
+        uuid appointment_id FK "Subject appointment"
+        uuid previous_slot_id FK "Replaced slot"
+        uuid new_slot_id FK "New slot"
+        varchar rescheduled_by "PATIENT | DOCTOR"
+        text reschedule_reason "Reason for change"
+        timestamp rescheduled_at "Rescheduled at"
+    }
+
+    %% RELATIONSHIPS
+    USERS ||--o{ VERIFICATION_TOKENS : "issues (1:N)"
+    USERS ||--o| PATIENTS : "identifies (1:1)"
+    USERS ||--o| DOCTORS : "identifies (1:1)"
+    SPECIALIZATIONS ||--o{ DOCTORS : "categorizes (1:N)"
+    DOCTORS ||--o{ DOCTOR_AVAILABILITY : "configures (1:N)"
+    DOCTORS ||--o{ TIME_SLOTS : "generates (1:N)"
+    DOCTOR_AVAILABILITY ||--o{ TIME_SLOTS : "spawns (1:N)"
+    PATIENTS ||--o{ APPOINTMENTS : "books (1:N)"
+    DOCTORS ||--o{ APPOINTMENTS : "attends (1:N)"
+    TIME_SLOTS ||--o{ APPOINTMENTS : "reserves (1:N)"
+    APPOINTMENTS ||--o{ RESCHEDULE_HISTORY : "tracks (1:N)"
+        </pre>
+      </div>
+    </div>
+
+    <div class="footer">
+      <span>Page 1 of 2 &bull; ER Diagram Architectural Blueprint</span>
+      <span>Schedula Project &bull; Schedula Schedule Project Module</span>
+    </div>
+  </div>
+
+  <!-- PAGE 2: ARCHITECTURE & DATA DICTIONARY -->
+  <div class="page">
+    <div class="header">
+      <div class="header-title">
+        <h1>Schedule Project Module &bull; Data Dictionary & Specifications</h1>
+        <p>Third Normal Form (3NF) relational tables, foreign key constraints & design decisions</p>
+      </div>
+      <div class="badge-track">Database Specification</div>
+    </div>
+
+    <div class="spec-grid">
+      <div class="spec-card">
+        <h3>1. User & Patient Modules</h3>
+        <p><strong>Separation of Concerns:</strong> <code>USERS</code> handles authentication credentials, password hashing, and OAuth tokens. <code>PATIENTS</code> maintains clinical demographic data linked 1:1 via <code>user_id</code> to ensure compliance and zero redundant profile fields.</p>
+      </div>
+      <div class="spec-card">
+        <h3>2. Doctor & Availability Modules</h3>
+        <p><strong>Elastic Scheduling:</strong> Doctors configure recurring shift rules via <code>DOCTOR_AVAILABILITY</code>, while <code>TIME_SLOTS</code> supports <code>REGULAR</code> and <code>ELASTIC</code> slot types with capacity limits to prevent double-booking while accommodating walk-ins.</p>
+      </div>
+    </div>
+
+    <h2>Core Data Dictionary</h2>
+    <table class="data-dict">
+      <thead>
+        <tr>
+          <th>Module</th>
+          <th>Table</th>
+          <th>Column</th>
+          <th>Data Type</th>
+          <th>Constraints & Keys</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td rowspan="2"><strong>1. User</strong></td>
+          <td><code>users</code></td>
+          <td><code>id, email, password_hash, role, auth_provider</code></td>
+          <td class="font-mono">UUID, VARCHAR</td>
+          <td>PK, UNIQUE(email), Role: DOCTOR|PATIENT|ADMIN</td>
+          <td>Core authentication entity and role governance</td>
+        </tr>
+        <tr>
+          <td><code>verification_tokens</code></td>
+          <td><code>id, user_id, token, expires_at, is_used</code></td>
+          <td class="font-mono">UUID, VARCHAR, TIMESTAMPTZ</td>
+          <td>PK, FK -&gt; users(id) ON DELETE CASCADE</td>
+          <td>Manages OTPs, verification links, and password resets</td>
+        </tr>
+        <tr>
+          <td><strong>2. Patient</strong></td>
+          <td><code>patients</code></td>
+          <td><code>id, user_id, first_name, last_name, dob, blood_group</code></td>
+          <td class="font-mono">UUID, VARCHAR, DATE</td>
+          <td>PK, FK -&gt; users(id) UNIQUE (1:1), NOT NULL</td>
+          <td>Patient demographics, emergency contacts, medical baseline</td>
+        </tr>
+        <tr>
+          <td rowspan="2"><strong>3. Doctor</strong></td>
+          <td><code>specializations</code></td>
+          <td><code>id, name, description</code></td>
+          <td class="font-mono">UUID, VARCHAR, TEXT</td>
+          <td>PK, UNIQUE(name)</td>
+          <td>Normalized medical specialties (Cardiology, etc.)</td>
+        </tr>
+        <tr>
+          <td><code>doctors</code></td>
+          <td><code>id, user_id, specialization_id, license_no, fee</code></td>
+          <td class="font-mono">UUID, VARCHAR, DECIMAL</td>
+          <td>PK, FK -&gt; users(id) (1:1), FK -&gt; specializations</td>
+          <td>Doctor professional profile, verified licenses, fees, ratings</td>
+        </tr>
+        <tr>
+          <td rowspan="2"><strong>4. Availability</strong></td>
+          <td><code>doctor_availability</code></td>
+          <td><code>id, doctor_id, day_of_week, start_time, end_time</code></td>
+          <td class="font-mono">UUID, SMALLINT, TIME</td>
+          <td>PK, FK -&gt; doctors(id) ON DELETE CASCADE</td>
+          <td>Recurring weekly availability window definition</td>
+        </tr>
+        <tr>
+          <td><code>time_slots</code></td>
+          <td><code>id, doctor_id, slot_date, start_time, max_capacity</code></td>
+          <td class="font-mono">UUID, DATE, TIME, INT</td>
+          <td>PK, FK -&gt; doctors(id), slot_type: REGULAR|ELASTIC</td>
+          <td>Concrete calendar booking slots with concurrent capacity control</td>
+        </tr>
+        <tr>
+          <td rowspan="2"><strong>5. Appointment</strong></td>
+          <td><code>appointments</code></td>
+          <td><code>id, patient_id, doctor_id, slot_id, status, reason</code></td>
+          <td class="font-mono">UUID, DATE, TIME, VARCHAR</td>
+          <td>PK, FK -&gt; patients, doctors, time_slots</td>
+          <td>Core booking transaction and status lifecycle tracking</td>
+        </tr>
+        <tr>
+          <td><code>reschedule_history</code></td>
+          <td><code>id, appointment_id, previous_slot_id, new_slot_id</code></td>
+          <td class="font-mono">UUID, VARCHAR, TIMESTAMPTZ</td>
+          <td>PK, FK -&gt; appointments(id) ON DELETE CASCADE</td>
+          <td>Complete audit trail for appointment timing changes and reasons</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="footer">
+      <span>Page 2 of 2 &bull; Data Dictionary & Specifications</span>
+      <span>Schedula Project &bull; Schedula Schedule Project Module</span>
+    </div>
+  </div>
+
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'default',
+      themeVariables: {
+        fontSize: '13px',
+        fontFamily: 'Inter, sans-serif',
+        primaryColor: '#e0f2fe',
+        primaryTextColor: '#0f172a',
+        primaryBorderColor: '#0284c7',
+        lineColor: '#0284c7',
+        secondaryColor: '#f8fafc',
+        tertiaryColor: '#ffffff'
+      },
+      er: {
+        useMaxWidth: false
+      }
+    });
+
+    window.addEventListener('load', () => {
+      document.body.classList.add('rendered');
+    });
+  </script>
+</body>
+</html>

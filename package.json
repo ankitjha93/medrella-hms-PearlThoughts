@@ -1,0 +1,18 @@
+{
+  "name": "hospital-management-system-schedule-module",
+  "version": "1.0.0",
+  "description": "ER Diagram and Relational Architecture for Schedula Schedule Project Module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "keywords": [
+    "hospital-management",
+    "erd",
+    "mermaid",
+    "schedula",
+    "pearlthoughts"
+  ],
+  "author": "Internship Developer",
+  "license": "MIT"
+}
