@@ -52,3 +52,4 @@ Quick solutions for the most common errors and edge cases encountered in **Medre
   ```typescript
   const DATA_DIR = process.env.VERCEL ? '/tmp' : path.join(process.cwd(), '.data');
   ```
+

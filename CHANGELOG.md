@@ -33,3 +33,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Dynamic conflict-free appointment booking engine preventing double bookings.
 - Doctor discovery directory and specialty catalog.
 - In-memory database cache backed by `.data/db.json`.
+

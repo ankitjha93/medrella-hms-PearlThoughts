@@ -14,3 +14,4 @@ Implement real-time appointment booking with zero double-booking tolerance.
 ### Definition of Done Met
 - 0 double bookings allowed by server.
 - Build succeeded with 0 errors.
+

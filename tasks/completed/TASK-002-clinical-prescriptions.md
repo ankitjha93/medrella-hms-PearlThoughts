@@ -15,3 +15,4 @@ Implement doctor consultation desk and verified electronic health record (EHR) p
 ### Definition of Done Met
 - End-to-end multi-role flow verified via persona switcher (`John Doe` and `Dr. Jane Smith`).
 - Full test suite passed with 6/6 checks.
+
