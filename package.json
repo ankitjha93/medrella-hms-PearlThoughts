@@ -1,18 +1,24 @@
 {
-  "name": "hospital-management-system-schedule-module",
+  "name": "medrella-hms",
   "version": "1.0.0",
-  "description": "ER Diagram and Relational Architecture for Schedula Schedule Project Module",
-  "main": "server.js",
+  "private": true,
+  "description": "Medrella - Modern Hospital Management & Outpatient Clinic Scheduling System",
   "scripts": {
-    "start": "node server.js"
+    "dev": "npm run dev --prefix frontend",
+    "build": "npm run build --prefix frontend",
+    "start": "npm run start --prefix frontend",
+    "lint": "npm run lint --prefix frontend",
+    "test": "powershell -ExecutionPolicy Bypass -File tests/run-tests.ps1"
   },
   "keywords": [
     "hospital-management",
-    "erd",
-    "mermaid",
-    "schedula",
-    "pearlthoughts"
+    "opd-scheduling",
+    "nextjs16",
+    "react19",
+    "tailwind-v4",
+    "prescriptions",
+    "medrella"
   ],
-  "author": "Internship Developer",
+  "author": "Medrella Engineering Team",
   "license": "MIT"
 }
