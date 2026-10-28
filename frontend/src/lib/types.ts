@@ -45,8 +45,25 @@ export interface DoctorAvailability {
 
 export type AppointmentStatus = 'SCHEDULED' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED' | 'PENDING';
 
+export interface PrescriptionItem {
+  medicineName: string;
+  dosage: string;
+  frequency: string;
+  duration: string;
+}
+
+export interface Prescription {
+  diagnosis: string;
+  medicines: PrescriptionItem[];
+  advice?: string;
+  followUpDate?: string;
+  prescribedAt: string;
+  doctorNotes?: string;
+}
+
 export interface Appointment {
   id: string;
+  tokenNumber?: number; // OPD Queue Token e.g. 1, 2, 3
   patientId: string;
   patientName: string;
   patientEmail: string;
@@ -64,6 +81,7 @@ export interface Appointment {
   status: AppointmentStatus;
   symptoms: string;
   cancellationReason?: string;
+  prescription?: Prescription;
   createdAt: string;
 }
 

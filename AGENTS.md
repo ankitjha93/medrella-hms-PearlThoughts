@@ -42,9 +42,21 @@ Invoke-RestMethod -Uri 'http://localhost:3000/api/doctors'
 # Fetch available slots for doctor on date
 Invoke-RestMethod -Uri 'http://localhost:3000/api/doctors/doc_1?date=2026-10-30'
 
-# Create appointment
-$body = @{ patientId='pat_1'; doctorId='doc_1'; date='2026-10-30'; timeSlot='10:00 AM'; symptoms='Checkup' } | ConvertTo-Json
+# Create appointment with auto-assigned OPD token
+$body = @{ patientId='pat_1'; doctorId='doc_1'; date='2026-10-30'; time='10:00 AM'; timeSlot='10:00 AM'; symptoms='Checkup' } | ConvertTo-Json
 Invoke-RestMethod -Uri 'http://localhost:3000/api/appointments' -Method Post -Body $body -ContentType 'application/json'
+
+# Complete visit with doctor prescription & clinical slip
+$patch = @{
+  status = 'COMPLETED'
+  prescription = @{
+    diagnosis = 'Stage 1 Pre-hypertension'
+    medicines = @(@{ medicineName = 'Metoprolol'; dosage = '25mg'; frequency = 'Daily'; duration = '30 days' })
+    advice = 'Low sodium diet and light morning exercise.'
+    followUpDate = '2026-11-30'
+  }
+} | ConvertTo-Json -Depth 5
+Invoke-RestMethod -Uri 'http://localhost:3000/api/appointments/apt_101' -Method Patch -Body $patch -ContentType 'application/json'
 ```
 
 ---
@@ -53,3 +65,4 @@ Invoke-RestMethod -Uri 'http://localhost:3000/api/appointments' -Method Post -Bo
 1. **No Hardcoded Dates During Static Prerender**: Avoid top-level `new Date()` outside `useEffect` to prevent Next.js static prerender errors.
 2. **Tailwind v4 Dark Mode**: Must maintain `@custom-variant dark (&:where(.dark, .dark *));` in `globals.css` so `.dark` class toggling responds immediately.
 3. **Vercel Deployment**: No `.env` credentials required. Set **Root Directory** to `frontend` in Vercel project configuration.
+

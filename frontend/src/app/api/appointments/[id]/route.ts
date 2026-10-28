@@ -8,7 +8,7 @@ export async function PATCH(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { status, cancellationReason } = body;
+    const { status, cancellationReason, prescription } = body;
 
     if (!status) {
       return NextResponse.json(
@@ -17,7 +17,7 @@ export async function PATCH(
       );
     }
 
-    const updated = updateAppointmentStatus(id, status, cancellationReason);
+    const updated = updateAppointmentStatus(id, status, cancellationReason, prescription);
 
     if (!updated) {
       return NextResponse.json(

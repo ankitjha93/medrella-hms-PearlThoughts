@@ -72,12 +72,23 @@ graph TD
 | Field | Type | Description |
 | :--- | :--- | :--- |
 | `id` | `string` | Auto-generated booking reference (`apt_{timestamp}_{random}`) |
+| `tokenNumber` | `number` | Daily sequential OPD queue token (`#OPD-01`, `#OPD-02`) |
 | `patientId` | `string` | Patient reference |
 | `doctorId` | `string` | Attending physician reference |
 | `date` | `string` | Appointment date (`YYYY-MM-DD`) |
 | `time` | `string` | Selected consultation slot (`HH:MM AM/PM`) |
 | `status` | `AppointmentStatus`| `SCHEDULED` \| `CONFIRMED` \| `COMPLETED` \| `CANCELLED` |
 | `symptoms` | `string` | Intake symptoms and reason for visit |
+| `prescription` | `Prescription?` | Clinical evaluation, Rx medicines, advice, follow-up date |
+
+### `Prescription`
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `diagnosis` | `string` | Clinical diagnosis / diagnostic assessment |
+| `medicines` | `PrescriptionItem[]` | Name, dosage, frequency, duration |
+| `advice` | `string?` | Lifestyle, dietary, and care guidelines |
+| `followUpDate` | `string?` | Scheduled next follow-up date |
+| `doctorNotes` | `string?` | Internal EHR physician observations |
 
 ---
 
@@ -105,3 +116,4 @@ return shiftSlots.map(time => ({
 - **Local Dev**: In-memory cache with fallback to `.data/db.json`.
 - **Vercel Serverless**: Dynamic detection via `process.env.VERCEL ? '/tmp' : '.data'`.
 - **Client Preference**: `medrella_theme` and `medrella_demo_user` stored in `localStorage`.
+

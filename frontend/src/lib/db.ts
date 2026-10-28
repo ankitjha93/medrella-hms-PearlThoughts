@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { Doctor, Appointment, DoctorAvailability, TimeSlot, AppointmentStatus } from './types';
+import { Doctor, Appointment, DoctorAvailability, TimeSlot, AppointmentStatus, Prescription } from './types';
 import { INITIAL_DOCTORS, INITIAL_APPOINTMENTS, INITIAL_AVAILABILITIES } from './mockData';
 
 const DATA_DIR = process.env.VERCEL ? '/tmp' : path.join(process.cwd(), '.data');
@@ -65,6 +65,7 @@ function normalizeDoctor(d: Doctor): Doctor {
 function normalizeAppointment(a: Appointment): Appointment {
   return {
     ...a,
+    tokenNumber: a.tokenNumber || 1,
     timeSlot: a.timeSlot || a.time,
   };
 }
@@ -122,8 +123,15 @@ export function getAppointments(filters?: { patientId?: string; doctorId?: strin
 export function createAppointment(data: Omit<Appointment, 'id' | 'createdAt' | 'status'>): Appointment {
   const db = loadDatabase();
 
+  const appointmentDate = data.date;
+  const doctorAppointmentsOnDate = db.appointments.filter(
+    a => a.doctorId === data.doctorId && a.date === appointmentDate && a.status !== 'CANCELLED'
+  );
+  const nextToken = (doctorAppointmentsOnDate.length || 0) + 1;
+
   const newAppointment: Appointment = {
     ...data,
+    tokenNumber: data.tokenNumber || nextToken,
     time: data.time || data.timeSlot || '10:00 AM',
     timeSlot: data.timeSlot || data.time || '10:00 AM',
     id: `apt_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
@@ -139,7 +147,8 @@ export function createAppointment(data: Omit<Appointment, 'id' | 'createdAt' | '
 export function updateAppointmentStatus(
   id: string, 
   status: AppointmentStatus, 
-  cancellationReason?: string
+  cancellationReason?: string,
+  prescription?: Prescription
 ): Appointment | null {
   const db = loadDatabase();
   const index = db.appointments.findIndex(a => a.id === id);
@@ -149,6 +158,9 @@ export function updateAppointmentStatus(
   db.appointments[index].status = status;
   if (cancellationReason) {
     db.appointments[index].cancellationReason = cancellationReason;
+  }
+  if (prescription) {
+    db.appointments[index].prescription = prescription;
   }
 
   saveDatabase(db);
