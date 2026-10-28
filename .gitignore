@@ -1,4 +1,41 @@
+# Dependencies
 node_modules/
+.pnp
+.pnp.js
+
+# Testing & Coverage
+coverage/
+*.lcov
 *.log
+
+# Next.js Build Output
+.next/
+out/
+build/
+dist/
+
+# Scratchpad & Local Database Storage
+.data/
+*.tsbuildinfo
+next-env.d.ts.bak
+
+# Environment Variables & Secrets
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Turbopack & Cache
+.turbo/
+.cache/
+
+# Operating System & IDE Clutter
 .DS_Store
 Thumbs.db
+*.swp
+*.swo
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+.idea/

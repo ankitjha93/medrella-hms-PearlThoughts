@@ -1,0 +1,25 @@
+# Auto detect text files and perform LF normalization
+* text=auto eol=lf
+
+# Explicitly declare text files you want to always be normalized and converted to native line endings on checkout.
+*.js text eol=lf
+*.mjs text eol=lf
+*.ts text eol=lf
+*.tsx text eol=lf
+*.json text eol=lf
+*.css text eol=lf
+*.md text eol=lf
+*.html text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.ps1 text eol=crlf
+
+# Denote all binary files that should not be modified by git.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.woff binary
+*.woff2 binary

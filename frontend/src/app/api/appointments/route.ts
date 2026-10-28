@@ -50,6 +50,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Verify slot is not already booked (conflict prevention guardrail)
+    const existing = getAppointments({ doctorId });
+    const isConflict = existing.some(
+      a => a.date === date && (a.time === chosenTime || a.timeSlot === chosenTime) && a.status !== 'CANCELLED'
+    );
+
+    if (isConflict) {
+      return NextResponse.json(
+        { success: false, error: 'This time slot is already reserved. Please select another time slot.' },
+        { status: 409 }
+      );
+    }
+
     const appointment = createAppointment({
       patientId,
       patientName: patientName || 'John Doe',

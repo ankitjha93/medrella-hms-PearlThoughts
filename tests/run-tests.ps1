@@ -28,6 +28,9 @@ function Run-Test {
   }
 }
 
+$TestDate = "2026-11-06"
+$TestSlot = "10:30 AM"
+
 # 1. Server Health Check
 Run-Test "Server Health Check (HTTP 200 on /)" {
   $res = Invoke-WebRequest -Uri $BaseUrl -Method Head -UseBasicParsing -TimeoutSec 5
@@ -43,16 +46,20 @@ Run-Test "GET /api/doctors returns specialist catalog" {
 }
 
 # 3. Doctor Availability Slots Check
-Run-Test "GET /api/doctors/doc_1?date=2026-10-30 returns open slots" {
-  $slotRes = Invoke-RestMethod -Uri "$BaseUrl/api/doctors/doc_1?date=2026-10-30" -Method Get
+Run-Test "GET /api/doctors/doc_1?date=$TestDate returns open slots" {
+  $slotRes = Invoke-RestMethod -Uri "$BaseUrl/api/doctors/doc_1?date=$TestDate" -Method Get
   if (-not $slotRes.success -or $slotRes.slots.Count -lt 1) {
     throw "Slots query returned 0 slots"
+  }
+  $avail = $slotRes.slots | Where-Object { $_.isAvailable -eq $true }
+  if ($avail.Count -gt 0) {
+    $script:TestSlot = $avail[0].time
   }
 }
 
 # 4. Booking & Token Generation Check
 $TestApptId = $null
-Run-Test "POST /api/appointments reserves slot & assigns OPD token" {
+Run-Test "POST /api/appointments reserves slot ($TestSlot) & assigns OPD token" {
   $body = @{
     patientId = "pat_1"
     patientName = "Automated Test Patient"
@@ -61,9 +68,9 @@ Run-Test "POST /api/appointments reserves slot & assigns OPD token" {
     doctorId = "doc_1"
     doctorName = "Dr. Jane Smith"
     doctorSpecialty = "Cardiology"
-    date = "2026-10-30"
-    time = "11:00 AM"
-    timeSlot = "11:00 AM"
+    date = $script:TestDate
+    time = $script:TestSlot
+    timeSlot = $script:TestSlot
     symptoms = "Automated test routine review"
     fee = 75
   } | ConvertTo-Json
@@ -76,7 +83,7 @@ Run-Test "POST /api/appointments reserves slot & assigns OPD token" {
 }
 
 # 5. Double-Booking Prevention Check (Negative Test)
-Run-Test "Duplicate booking on same slot is rejected (Double-booking guardrail)" {
+Run-Test "Duplicate booking on same slot ($TestSlot) is rejected (Double-booking guardrail)" {
   $dupBody = @{
     patientId = "pat_2"
     patientName = "Collision Test Patient"
@@ -85,9 +92,9 @@ Run-Test "Duplicate booking on same slot is rejected (Double-booking guardrail)"
     doctorId = "doc_1"
     doctorName = "Dr. Jane Smith"
     doctorSpecialty = "Cardiology"
-    date = "2026-10-30"
-    time = "11:00 AM"
-    timeSlot = "11:00 AM"
+    date = $script:TestDate
+    time = $script:TestSlot
+    timeSlot = $script:TestSlot
     symptoms = "Attempting conflicting booking"
     fee = 75
   } | ConvertTo-Json
@@ -112,7 +119,7 @@ Run-Test "PATCH /api/appointments/[id] completes visit & attaches clinical presc
         @{ medicineName = "Standard Daily Vitamin"; dosage = "1 Tab"; frequency = "Once daily"; duration = "30 days" }
       )
       advice = "Stay hydrated and maintain routine exercise."
-      followUpDate = "2026-11-30"
+      followUpDate = "2026-12-06"
       doctorNotes = "Automated test prescription verified."
       prescribedAt = (Get-Date).ToString("o")
     }
@@ -133,4 +140,3 @@ if ($PassedTests -ne $TotalTests) {
 } else {
   exit 0
 }
-
