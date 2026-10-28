@@ -1,119 +1,38 @@
-# 🧠 Medrella Clinical Engine — System Brain & Architecture
+# 🧠 Medrella Brain — Product Vision & Business Context
 
-## 1. Project Mission & Overview
-**Medrella** is a high-performance outpatient healthcare appointment booking and clinical queue management platform engineered using the **Schedula** scheduling architecture. It bridges patient self-service booking with live physician outpatient department (OPD) triage.
+## 1. Executive Summary & Product Mission
+Medrella is a next-generation Outpatient Department (OPD) clinic scheduling and consultation platform designed to streamline the patient-doctor clinical encounter.
 
----
-
-## 2. System Architecture
-
-```mermaid
-graph TD
-    subgraph Client Application [Next.js 16 App Router UI]
-        Home["/ (Landing Page & Discovery)"]
-        Dir["/doctors (Specialist Directory & Filters)"]
-        Pat["/patient (Patient Appointments Portal)"]
-        Doc["/doctor (Clinical Queue Dashboard)"]
-        Nav["Navbar (Theme Switcher & Role Persona)"]
-    end
-
-    subgraph State & Context Layer
-        RC["RoleContext (Active User Persona: Patient vs Doctor)"]
-        TC["ThemeContext (Light / Dark Tailwind v4 Mode)"]
-    end
-
-    subgraph REST Backend Layer [Next.js API Routes]
-        D_API["/api/doctors (Search & Specialties)"]
-        DS_API["/api/doctors/[id] (Dynamic Slot Engine)"]
-        A_API["/api/appointments (Create & Query)"]
-        AU_API["/api/appointments/[id] (Status Updates)"]
-        AV_API["/api/availability (Shift & Duration Manager)"]
-    end
-
-    subgraph Storage Layer
-        MemCache["In-Memory Database Cache"]
-        DiskStore[".data/db.json (Local Disk)"]
-        VercelStore["/tmp/db.json (Serverless Scratchpad)"]
-    end
-
-    Client Application --> State & Context Layer
-    Client Application --> REST Backend Layer
-    REST Backend Layer --> MemCache
-    MemCache --> DiskStore
-    MemCache --> VercelStore
-```
+### Core Problems Solved
+1. **Double-Booking & Slot Contention**: Dynamic real-time slot generation prevents conflicting appointments before requests reach the database.
+2. **OPD Queue Chaos**: Sequential token numbering (`#OPD-01`, `#OPD-02`) gives patients transparent queue status and gives doctors a structured "Now Serving" workflow.
+3. **Paper Prescription Loss**: In-app doctor consultation desk generates structured digital prescriptions and printable hospital letterhead slips.
+4. **Appointment No-Shows**: 1-click RFC 5545 `.ics` calendar sync embeds reminders into patient calendars.
 
 ---
 
-## 3. Core Domain Entities
+## 2. Business Rules & Domain Logic
 
-### `User`
-| Field | Type | Description |
-| :--- | :--- | :--- |
-| `id` | `string` | Unique user identifier (`user_pat_1`, `user_doc_1`) |
-| `name` | `string` | Full display name |
-| `email` | `string` | Primary communication email |
-| `role` | `'PATIENT' \| 'DOCTOR' \| 'ADMIN'` | Access control role |
-| `patientId` | `string?` | Linked patient entity reference |
-| `doctorId` | `string?` | Linked doctor entity reference |
+### Slot Generation & Conflict Rules
+1. A doctor is available on a given date **only** if that day of the week matches their shift schedule (`availableDays` or `DoctorAvailability`).
+2. Slot duration defaults to 30 minutes (configurable between 15, 30, 45, and 60 minutes).
+3. If an appointment exists for `doctorId` on `date` at `time` with status `CONFIRMED` or `SCHEDULED`, that slot is strictly marked unavailable.
+4. If an appointment is cancelled, its slot is instantly restored to available status.
 
-### `Doctor`
-| Field | Type | Description |
-| :--- | :--- | :--- |
-| `id` | `string` | Doctor identifier (`doc_1`, `doc_2`, etc.) |
-| `name` | `string` | Physician title & name |
-| `specialization`| `string` | Primary medical field (Cardiology, Dermatology, etc.) |
-| `experienceYears`| `number` | Clinical practicing years |
-| `consultationFee`| `number` | Outpatient session fee in USD |
-| `rating` | `number` | Aggregated patient rating (1.0 - 5.0) |
-| `availableDays` | `string[]` | Shift roster (e.g. `['Monday', 'Wednesday']`) |
+### Queue Token Logic
+1. Every appointment created for a specific doctor on a specific date is assigned an incrementing sequential token:
+   $$\text{tokenNumber} = \text{Count}(\text{Active Appointments on Date}) + 1$$
+2. Token numbers are formatted as `#OPD-01`, `#OPD-02` for patient clarity.
+3. Doctor dashboard identifies the lowest token number with status `CONFIRMED` or `SCHEDULED` as the current patient in "Now Serving".
 
-### `Appointment`
-| Field | Type | Description |
-| :--- | :--- | :--- |
-| `id` | `string` | Auto-generated booking reference (`apt_{timestamp}_{random}`) |
-| `tokenNumber` | `number` | Daily sequential OPD queue token (`#OPD-01`, `#OPD-02`) |
-| `patientId` | `string` | Patient reference |
-| `doctorId` | `string` | Attending physician reference |
-| `date` | `string` | Appointment date (`YYYY-MM-DD`) |
-| `time` | `string` | Selected consultation slot (`HH:MM AM/PM`) |
-| `status` | `AppointmentStatus`| `SCHEDULED` \| `CONFIRMED` \| `COMPLETED` \| `CANCELLED` |
-| `symptoms` | `string` | Intake symptoms and reason for visit |
-| `prescription` | `Prescription?` | Clinical evaluation, Rx medicines, advice, follow-up date |
-
-### `Prescription`
-| Field | Type | Description |
-| :--- | :--- | :--- |
-| `diagnosis` | `string` | Clinical diagnosis / diagnostic assessment |
-| `medicines` | `PrescriptionItem[]` | Name, dosage, frequency, duration |
-| `advice` | `string?` | Lifestyle, dietary, and care guidelines |
-| `followUpDate` | `string?` | Scheduled next follow-up date |
-| `doctorNotes` | `string?` | Internal EHR physician observations |
+### Clinical Prescription Rules
+1. Prescriptions can only be created by attending doctors when transitioning an appointment to `COMPLETED`.
+2. Prescriptions require at minimum a **Clinical Diagnosis** and one or more **Prescribed Medications** with dosage, frequency, and duration.
+3. Completed prescriptions are immutable electronic health records (EHR) presented on verified hospital letterhead with the doctor's credentials.
 
 ---
 
-## 4. Conflict-Free Slot Generation Logic
-
-```typescript
-// 1. Identify doctor active shift for target date
-// 2. Fetch all non-cancelled appointments for this doctor on target date
-const bookedTimes = new Set(
-  appointments
-    .filter(a => a.doctorId === doctorId && a.date === date && a.status !== 'CANCELLED')
-    .map(a => a.time)
-);
-
-// 3. Mark availability per slot
-return shiftSlots.map(time => ({
-  time,
-  isAvailable: !bookedTimes.has(time)
-}));
-```
-
----
-
-## 5. Storage & Persistence Strategy
-- **Local Dev**: In-memory cache with fallback to `.data/db.json`.
-- **Vercel Serverless**: Dynamic detection via `process.env.VERCEL ? '/tmp' : '.data'`.
-- **Client Preference**: `medrella_theme` and `medrella_demo_user` stored in `localStorage`.
-
+## 3. Storage Architecture
+- **In-Memory Cache**: Immediate low-latency reads and writes during server runtime.
+- **Local Development**: Auto-saves to `.data/db.json` upon every write operation.
+- **Vercel Serverless**: Detects `process.env.VERCEL` and routes filesystem scratchpad writes to `/tmp/db.json` to avoid read-only deployment errors.
