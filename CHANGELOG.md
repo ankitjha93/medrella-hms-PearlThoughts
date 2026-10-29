@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.8.1] - 2026-10-29
+### Fixed
+- **Tailwind CSS v4 Production Compilation on Vercel Deployment**:
+  - Resolved missing styles and unstyled HTML on production Vercel deployment (`medrella-hms.vercel.app`).
+  - Installed `@tailwindcss/postcss` and `postcss` in `frontend/`.
+  - Added `frontend/postcss.config.mjs` to properly drive the Tailwind CSS v4 compiler across both Webpack and Turbopack.
+  - Removed conflicting Turbopack-only CSS rule in `frontend/next.config.ts`.
+  - Verified compiled production bundle size grew from 25 KB to ~95 KB with full utility class generation (`.flex`, `.grid`, `.bg-emerald-600`, keyframes, etc.).
+
+---
+
 ## [0.8.0] - 2026-10-29
 ### Added
 - **Enterprise Authentication Enhancements (TASK-008)**:
