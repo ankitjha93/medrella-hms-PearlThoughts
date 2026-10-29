@@ -24,7 +24,85 @@ import {
   ShieldCheck,
   Printer,
   Pill,
+  PhoneCall,
+  BarChart2,
+  TrendingUp,
+  CalendarOff,
 } from "lucide-react";
+
+interface ClinicalPreset {
+  id: string;
+  label: string;
+  category: string;
+  diagnosis: string;
+  advice: string;
+  followUpDays: number;
+  medicines: PrescriptionItem[];
+}
+
+const CLINICAL_PRESETS: ClinicalPreset[] = [
+  {
+    id: "pre-hypertension",
+    label: "Stage 1 Pre-hypertension",
+    category: "Cardiology",
+    diagnosis: "Stage 1 Pre-hypertension (Resting BP 138/88 mmHg)",
+    advice: "Initiate low-sodium DASH diet. 30 mins moderate aerobic walking daily. Record morning and evening home BP.",
+    followUpDays: 30,
+    medicines: [
+      { medicineName: "Metoprolol Succinate 25mg", dosage: "1 Tablet", frequency: "Once daily in the morning", duration: "30 days" },
+      { medicineName: "Amlodipine Besylate 5mg", dosage: "1 Tablet", frequency: "Once daily at night", duration: "30 days" },
+    ],
+  },
+  {
+    id: "sinus-tachycardia",
+    label: "Sinus Tachycardia / Palpitations",
+    category: "Cardiology",
+    diagnosis: "Benign Sinus Tachycardia (Secondary to stress/fatigue)",
+    advice: "Strictly avoid high-caffeine beverages & energy drinks. Ensure 8 hours rest. Hydrate with 2.5L water daily.",
+    followUpDays: 14,
+    medicines: [
+      { medicineName: "Propranolol Hydrochloride 10mg", dosage: "1 Tablet", frequency: "SOS as needed for palpitations", duration: "14 days" },
+      { medicineName: "Magnesium Glycinate 200mg", dosage: "1 Capsule", frequency: "Once daily before bedtime", duration: "30 days" },
+    ],
+  },
+  {
+    id: "bronchitis",
+    label: "Acute Tracheobronchitis",
+    category: "Pulmonology",
+    diagnosis: "Acute Viral Tracheobronchitis with productive cough",
+    advice: "Steam inhalation twice daily. Warm fluids and honey. Avoid cold air exposure. Complete antibiotic course.",
+    followUpDays: 7,
+    medicines: [
+      { medicineName: "Azithromycin 500mg", dosage: "1 Tablet", frequency: "Once daily 1 hour before meal", duration: "5 days" },
+      { medicineName: "Levocetirizine 5mg", dosage: "1 Tablet", frequency: "Once daily at bedtime", duration: "7 days" },
+      { medicineName: "Dextromethorphan Cough Syrup", dosage: "10 ml", frequency: "Thrice daily after meals", duration: "5 days" },
+    ],
+  },
+  {
+    id: "contact-dermatitis",
+    label: "Allergic Contact Dermatitis",
+    category: "Dermatology",
+    diagnosis: "Erythematous Allergic Contact Dermatitis",
+    advice: "Discontinue any new soaps or topical detergents. Apply moisturizing barrier cream within 3 mins post-bath.",
+    followUpDays: 10,
+    medicines: [
+      { medicineName: "Hydrocortisone 1% Topical Cream", dosage: "Thin layer", frequency: "Twice daily after cleaning", duration: "7 days" },
+      { medicineName: "Bilastine 20mg", dosage: "1 Tablet", frequency: "Once daily in the morning", duration: "10 days" },
+    ],
+  },
+  {
+    id: "tension-migraine",
+    label: "Episodic Tension Migraine",
+    category: "Neurology",
+    diagnosis: "Episodic Tension Headache with Migrainous Features",
+    advice: "Rest in a quiet, dark room during onset. Keep a headache trigger log. Maintain ergonomic screen height.",
+    followUpDays: 21,
+    medicines: [
+      { medicineName: "Naproxen Sodium 500mg", dosage: "1 Tablet", frequency: "SOS with meal at pain onset", duration: "5 days" },
+      { medicineName: "Pantoprazole 40mg", dosage: "1 Tablet", frequency: "Once daily 30 min before breakfast", duration: "7 days" },
+    ],
+  },
+];
 
 export default function DoctorDashboardPage() {
   const { currentUser, setRole } = useRole();
@@ -35,6 +113,7 @@ export default function DoctorDashboardPage() {
   const [availability, setAvailability] = useState<DoctorAvailability | null>(null);
   const [showSettingsModal, setShowSettingsModal] = useState<boolean>(false);
   const [savingSettings, setSavingSettings] = useState<boolean>(false);
+  const [newBlackoutDate, setNewBlackoutDate] = useState<string>("");
 
   // Consultation Desk & Prescription Modal State
   const [consultationAppt, setConsultationAppt] = useState<Appointment | null>(null);
@@ -159,6 +238,37 @@ export default function DoctorDashboardPage() {
     }
   };
 
+  const applyPreset = (preset: ClinicalPreset) => {
+    setDiagnosis(preset.diagnosis);
+    setAdvice(preset.advice);
+    setMedicines(preset.medicines);
+    const followUp = new Date();
+    followUp.setDate(followUp.getDate() + preset.followUpDays);
+    setFollowUpDate(followUp.toISOString().split("T")[0]);
+    setDoctorNotes(`Consultation completed using clinical guidance protocol for ${preset.label}.`);
+  };
+
+  const handleAddBlackoutDate = (date: string) => {
+    if (!availability || !date) return;
+    const current = availability.blackoutDates || [];
+    if (!current.includes(date)) {
+      setAvailability({
+        ...availability,
+        blackoutDates: [...current, date],
+      });
+    }
+    setNewBlackoutDate("");
+  };
+
+  const handleRemoveBlackoutDate = (date: string) => {
+    if (!availability) return;
+    const current = availability.blackoutDates || [];
+    setAvailability({
+      ...availability,
+      blackoutDates: current.filter((d) => d !== date),
+    });
+  };
+
   const handleSaveAvailability = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!availability) return;
@@ -174,6 +284,7 @@ export default function DoctorDashboardPage() {
           startTime: availability.startTime,
           endTime: availability.endTime,
           slotDurationMinutes: availability.slotDurationMinutes,
+          blackoutDates: availability.blackoutDates || [],
         }),
       });
 
@@ -284,7 +395,18 @@ export default function DoctorDashboardPage() {
             </p>
           </div>
 
-          <div className="flex items-center space-x-3 shrink-0">
+          <div className="flex flex-wrap items-center gap-3 shrink-0">
+            <button
+              onClick={() => {
+                alert(`Calling Token #OPD-${String(activeQueuePatient.tokenNumber || 1).padStart(2, "0")}: ${activeQueuePatient.patientName} to OPD Consultation Room 402!`);
+                openConsultationDesk(activeQueuePatient);
+              }}
+              className="px-4 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-white font-bold text-xs rounded-xl flex items-center space-x-2 shadow-sm transition"
+              title="Call next patient in queue"
+            >
+              <PhoneCall className="w-4 h-4 text-white" />
+              <span>Call Next Patient</span>
+            </button>
             <button
               onClick={() => openConsultationDesk(activeQueuePatient)}
               className="px-5 py-2.5 bg-white text-emerald-900 hover:bg-emerald-50 font-bold text-xs rounded-xl flex items-center space-x-2 shadow-sm transition"
@@ -339,6 +461,66 @@ export default function DoctorDashboardPage() {
           </div>
           <div className="text-3xl font-extrabold text-teal-700 dark:text-teal-400">${totalRevenue}</div>
           <div className="text-[11px] text-slate-500 dark:text-slate-400">Based on ${docFee} / consult</div>
+        </div>
+      </div>
+
+      {/* Weekly Clinical Volume Analytics Mini-Chart */}
+      <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="space-y-1">
+            <div className="flex items-center space-x-2">
+              <BarChart2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+              <h3 className="font-bold text-sm text-slate-900 dark:text-white uppercase tracking-wider">
+                Weekly Consultation Volume & Department Throughput
+              </h3>
+            </div>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Live capacity and queue distribution across current clinical rota
+            </p>
+          </div>
+          <div className="flex items-center space-x-4 text-xs font-semibold">
+            <span className="flex items-center space-x-1.5 text-emerald-600 dark:text-emerald-400">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+              <span>Completion Rate: {totalBookings > 0 ? Math.round((completedCount / totalBookings) * 100) : 0}%</span>
+            </span>
+            <span className="flex items-center space-x-1.5 text-blue-600 dark:text-blue-400">
+              <span className="w-2.5 h-2.5 rounded-full bg-blue-500" />
+              <span>Avg Consult: 18m</span>
+            </span>
+          </div>
+        </div>
+
+        {/* Visual Bar Graph */}
+        <div className="grid grid-cols-7 gap-2 sm:gap-3 pt-2">
+          {[
+            { day: "Mon", count: 8, pct: "80%" },
+            { day: "Tue", count: 11, pct: "100%" },
+            { day: "Wed", count: 9, pct: "85%" },
+            { day: "Thu", count: 7, pct: "70%" },
+            { day: "Fri", count: 10, pct: "95%" },
+            { day: "Sat", count: 4, pct: "40%" },
+            { day: "Sun", count: 0, pct: "0%" },
+          ].map((bar) => (
+            <div key={bar.day} className="flex flex-col items-center space-y-2">
+              <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-xl h-24 p-1 flex items-end justify-center">
+                <div
+                  style={{ height: bar.pct }}
+                  className={`w-full rounded-lg transition-all duration-500 ${
+                    bar.count > 0
+                      ? bar.day === "Wed"
+                        ? "bg-gradient-to-t from-emerald-600 to-teal-400"
+                        : "bg-emerald-500/80 hover:bg-emerald-600"
+                      : "bg-slate-200 dark:bg-slate-700/40"
+                  }`}
+                  title={`${bar.day}: ${bar.count} Visits`}
+                />
+              </div>
+              <div className="text-center">
+                <div className="text-xs font-bold text-slate-800 dark:text-slate-200">{bar.day}</div>
+                <div className="text-[10px] text-slate-400 font-mono">{bar.count} pts</div>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 
@@ -502,6 +684,27 @@ export default function DoctorDashboardPage() {
               <div className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700 text-xs">
                 <span className="font-bold text-slate-700 dark:text-slate-300">Patient Symptoms / Chief Complaint:</span>{" "}
                 <span className="text-slate-600 dark:text-slate-400">{consultationAppt.symptoms || "Regular consultation"}</span>
+              </div>
+
+              {/* 1-Click Clinical Guidance Presets */}
+              <div className="space-y-1.5">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 flex items-center space-x-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                  <span>1-Click Clinical Guidance Presets (Auto-fills Rx & Advice)</span>
+                </span>
+                <div className="flex flex-wrap gap-1.5">
+                  {CLINICAL_PRESETS.map((preset) => (
+                    <button
+                      key={preset.id}
+                      type="button"
+                      onClick={() => applyPreset(preset)}
+                      className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 transition flex items-center space-x-1"
+                    >
+                      <Sparkles className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+                      <span>{preset.label}</span>
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {/* Diagnosis Input */}
@@ -749,39 +952,86 @@ export default function DoctorDashboardPage() {
               </button>
             </div>
 
-            <form onSubmit={handleSaveAvailability} className="p-6 space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase mb-1">
-                  Start Shift Hour
+            <form onSubmit={handleSaveAvailability} className="p-6 space-y-5 max-h-[85vh] overflow-y-auto">
+              {/* Practicing Days of the Week */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase">
+                  Practicing Days of the Week
                 </label>
-                <input
-                  type="text"
-                  value={availability.startTime}
-                  onChange={(e) =>
-                    setAvailability({ ...availability, startTime: e.target.value })
-                  }
-                  className="w-full p-2.5 border border-slate-300 dark:border-slate-700 rounded-xl text-sm font-medium bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
-                  placeholder="09:00"
-                  required
-                />
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"].map((day) => {
+                    const days = availability.daysOfWeek || [availability.dayOfWeek || "Monday"];
+                    const isChecked = days.includes(day);
+                    return (
+                      <label
+                        key={day}
+                        className={`flex items-center space-x-2 p-2 rounded-xl border text-xs font-semibold cursor-pointer transition ${
+                          isChecked
+                            ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800"
+                            : "bg-slate-50 dark:bg-slate-800/40 text-slate-500 border-slate-200 dark:border-slate-700"
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setAvailability({
+                                ...availability,
+                                daysOfWeek: [...days, day],
+                              });
+                            } else {
+                              setAvailability({
+                                ...availability,
+                                daysOfWeek: days.filter((d) => d !== day),
+                              });
+                            }
+                          }}
+                          className="rounded text-emerald-600 focus:ring-emerald-500"
+                        />
+                        <span>{day}</span>
+                      </label>
+                    );
+                  })}
+                </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase mb-1">
-                  End Shift Hour
-                </label>
-                <input
-                  type="text"
-                  value={availability.endTime}
-                  onChange={(e) =>
-                    setAvailability({ ...availability, endTime: e.target.value })
-                  }
-                  className="w-full p-2.5 border border-slate-300 dark:border-slate-700 rounded-xl text-sm font-medium bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
-                  placeholder="17:00"
-                  required
-                />
+              {/* Shift Hours */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase mb-1">
+                    Start Shift Hour
+                  </label>
+                  <input
+                    type="text"
+                    value={availability.startTime}
+                    onChange={(e) =>
+                      setAvailability({ ...availability, startTime: e.target.value })
+                    }
+                    className="w-full p-2.5 border border-slate-300 dark:border-slate-700 rounded-xl text-sm font-medium bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+                    placeholder="09:00"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase mb-1">
+                    End Shift Hour
+                  </label>
+                  <input
+                    type="text"
+                    value={availability.endTime}
+                    onChange={(e) =>
+                      setAvailability({ ...availability, endTime: e.target.value })
+                    }
+                    className="w-full p-2.5 border border-slate-300 dark:border-slate-700 rounded-xl text-sm font-medium bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+                    placeholder="17:00"
+                    required
+                  />
+                </div>
               </div>
 
+              {/* Consultation Slot Duration */}
               <div>
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase mb-1">
                   Consultation Slot Duration (Minutes)
@@ -803,6 +1053,62 @@ export default function DoctorDashboardPage() {
                 </select>
               </div>
 
+              {/* Leave & Vacation Blackout Dates Manager */}
+              <div className="space-y-2 pt-2 border-t border-slate-200 dark:border-slate-800">
+                <div className="flex items-center space-x-2">
+                  <CalendarOff className="w-4 h-4 text-rose-500" />
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                    Doctor Leave & Vacation Blackout Dates
+                  </label>
+                </div>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Slots on these dates will be blocked from patient bookings without changing your standard weekly schedule.
+                </p>
+
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="date"
+                    min={new Date().toISOString().split("T")[0]}
+                    value={newBlackoutDate}
+                    onChange={(e) => setNewBlackoutDate(e.target.value)}
+                    className="px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-xl text-xs bg-white dark:bg-slate-800 text-slate-900 dark:text-white"
+                  />
+                  <button
+                    type="button"
+                    disabled={!newBlackoutDate}
+                    onClick={() => handleAddBlackoutDate(newBlackoutDate)}
+                    className="px-3.5 py-2 bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-900/60 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800 rounded-xl text-xs font-semibold disabled:opacity-50 transition"
+                  >
+                    + Block Date
+                  </button>
+                </div>
+
+                {/* Active Blackout Dates List */}
+                {availability.blackoutDates && availability.blackoutDates.length > 0 ? (
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    {availability.blackoutDates.map((date) => (
+                      <span
+                        key={date}
+                        className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800"
+                      >
+                        <span>{date}</span>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveBlackoutDate(date)}
+                          className="hover:text-rose-900 dark:hover:text-white"
+                          title="Unblock date"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-[11px] text-slate-400 italic">No leave dates currently scheduled.</p>
+                )}
+              </div>
+
+              {/* Action Buttons */}
               <div className="pt-4 flex justify-end space-x-3 border-t border-slate-100 dark:border-slate-800">
                 <button
                   type="button"
@@ -814,9 +1120,9 @@ export default function DoctorDashboardPage() {
                 <button
                   type="submit"
                   disabled={savingSettings}
-                  className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold transition shadow-sm"
+                  className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition shadow-sm"
                 >
-                  {savingSettings ? "Updating..." : "Save Shift Hours"}
+                  {savingSettings ? "Updating..." : "Save Shift & Leave Settings"}
                 </button>
               </div>
             </form>

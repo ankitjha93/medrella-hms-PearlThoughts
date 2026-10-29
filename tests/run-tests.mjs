@@ -160,6 +160,27 @@ async function main() {
     }
   });
 
+  // 7. Doctor Review Submission
+  await runTest('POST /api/doctors/doc_1/reviews submits review & updates rating', async () => {
+    const reviewPayload = {
+      patientName: 'Test Patient',
+      rating: 5,
+      comment: 'Excellent cardiology consultation. Clear advice and compassionate care!',
+    };
+
+    const res = await fetch(`${BASE_URL}/api/doctors/doc_1/reviews`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(reviewPayload),
+    });
+
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    if (!data.success || !data.review || data.doctor?.rating === undefined) {
+      throw new Error('Review submission did not update doctor rating or return review object');
+    }
+  });
+
   console.log('\x1b[36m%s\x1b[0m', '-------------------------------------------------');
   const resultColor = passedTests === totalTests ? '\x1b[32m' : '\x1b[33m';
   console.log(`${resultColor}%s\x1b[0m`, `Test Results: ${passedTests} / ${totalTests} Tests Passed`);

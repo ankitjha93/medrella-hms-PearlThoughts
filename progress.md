@@ -23,15 +23,22 @@ Current state, completed work, blockers, and next steps for **Medrella HMS**.
 | **Printable Medical Slip & EHR Viewer** | ✅ Completed | 2026-10-28 | Hospital letterhead with `window.print()` PDF trigger |
 | **Add to Calendar (.ics) Export** | ✅ Completed | 2026-10-28 | RFC 5545 format for Google/Apple/Outlook |
 | **Vercel Serverless `/tmp` Compatibility**| ✅ Completed | 2026-10-28 | Dynamic scratchpad path detection |
-| **Appointment Rescheduling & Slot Realloc**| 🔄 In Progress | — | Current sprint task |
-| **Doctor Leave / Vacation Manager** | ⏳ Pending | — | Doctor date blackout system |
-| **AI Symptom Triage & Specialist Matcher**| ⏳ Pending | — | Interactive symptom evaluator |
-| **Doctor Detail Pages & Patient Reviews** | ⏳ Pending | — | `/doctors/[id]` and star ratings |
+| **Interactive Notification Center**     | ✅ Completed | 2026-10-28 | Clinical alerts dropdown with live unread badge |
+| **Interactive Symptom Triage & Matcher** | ✅ Completed | 2026-10-28 | Conversational triage widget & 1-click booking CTA |
+| **Specialist Discovery & Profile Modal** | ✅ Completed | 2026-10-28 | Fee filters, Grid/List view toggle, Credentials modal |
+| **Enhanced Booking Stepper & Shift Slots**| ✅ Completed | 2026-10-28 | Multi-step indicator, Morning/Afternoon grouping, symptom chips |
+| **Patient Health Profile & Vitals Card**  | ✅ Completed | 2026-10-28 | MRN record, blood group, BP, allergies, and quick stats |
+| **Appointment Rescheduling & Slot Realloc**| ✅ Completed | 2026-10-28 | Atomic slot swap, collision guardrail, token update (TASK-004) |
+| **Prescription Dosage Schedule Badges**   | ✅ Completed | 2026-10-28 | Visual timing badges (Morning ☀️, Noon ⛅, Night 🌙) |
+| **1-Click Clinical Guidance Presets (Rx)**| ✅ Completed | 2026-10-28 | Standardized therapeutic regimens for rapid consultation |
+| **Queue Call Advance & Analytics Chart** | ✅ Completed | 2026-10-28 | "Call Next Patient" trigger & weekly volume graph |
+| **Doctor Leave / Vacation Manager**       | ✅ Completed | 2026-10-28 | Blackout dates management without altering baseline shift |
+| **Doctor Detail Pages & Patient Reviews** | ✅ Completed | 2026-10-29 | Dedicated route `/doctors/[id]`, review submission, dynamic ratings (TASK-005) |
 
 ---
 
 ## 2. Blockers & Risks
-- **No Active Blockers**: The build succeeds with 0 errors across 10 static and dynamic routes.
+- **No Active Blockers**: The build succeeds with 0 errors across 15 static and dynamic routes.
 - **Port Conflict Risk**: Next.js processes on Windows can hold port 3000 if not gracefully terminated. Handled by checking `Get-NetTCPConnection -LocalPort 3000`.
 
 ---

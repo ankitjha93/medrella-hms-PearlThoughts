@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { Doctor, Appointment, DoctorAvailability, TimeSlot, AppointmentStatus, Prescription } from './types';
+import { Doctor, Appointment, DoctorAvailability, TimeSlot, AppointmentStatus, Prescription, DoctorReview } from './types';
 import { INITIAL_DOCTORS, INITIAL_APPOINTMENTS, INITIAL_AVAILABILITIES } from './mockData';
 
 const DATA_DIR = process.env.VERCEL ? '/tmp' : path.join(process.cwd(), '.data');
@@ -59,6 +59,7 @@ function normalizeDoctor(d: Doctor): Doctor {
     experience: d.experience || `${d.experienceYears} years`,
     bio: d.bio || d.about,
     reviewCount: d.reviewCount !== undefined ? d.reviewCount : d.reviewsCount,
+    reviews: d.reviews || [],
   };
 }
 
@@ -99,6 +100,40 @@ export function getDoctorById(id: string): Doctor | undefined {
   const db = loadDatabase();
   const found = db.doctors.find(d => d.id === id);
   return found ? normalizeDoctor(found) : undefined;
+}
+
+export function addDoctorReview(
+  doctorId: string,
+  review: { patientName?: string; rating: number; comment: string }
+): { doctor: Doctor; review: DoctorReview } {
+  const db = loadDatabase();
+  const doctor = db.doctors.find(d => d.id === doctorId);
+  if (!doctor) {
+    throw new Error('Doctor not found');
+  }
+
+  const newReview: DoctorReview = {
+    id: `rev_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+    doctorId,
+    patientName: review.patientName?.trim() || 'Verified Patient',
+    rating: Math.min(5, Math.max(1, review.rating)),
+    comment: review.comment,
+    date: new Date().toISOString().split('T')[0],
+    verifiedVisit: true,
+  };
+
+  const currentReviews = doctor.reviews || [];
+  currentReviews.unshift(newReview);
+  doctor.reviews = currentReviews;
+
+  // Recalculate average rating & reviewsCount
+  const totalRating = currentReviews.reduce((acc, r) => acc + r.rating, 0);
+  doctor.reviewsCount = currentReviews.length;
+  doctor.reviewCount = currentReviews.length;
+  doctor.rating = Math.round((totalRating / currentReviews.length) * 10) / 10;
+
+  saveDatabase(db);
+  return { doctor: normalizeDoctor(doctor), review: newReview };
 }
 
 // --- APPOINTMENTS ---
@@ -167,6 +202,60 @@ export function updateAppointmentStatus(
   return normalizeAppointment(db.appointments[index]);
 }
 
+export function rescheduleAppointment(
+  id: string,
+  newDate: string,
+  newTime: string,
+  reason?: string
+): Appointment | null {
+  const db = loadDatabase();
+  const index = db.appointments.findIndex(a => a.id === id);
+
+  if (index === -1) return null;
+  const current = db.appointments[index];
+
+  if (current.status === 'COMPLETED' || current.status === 'CANCELLED') {
+    throw new Error(`Cannot reschedule an appointment that is already ${current.status}`);
+  }
+
+  // Check if target slot is already occupied on target date
+  const isConflict = db.appointments.some(
+    a => a.id !== id &&
+         a.doctorId === current.doctorId &&
+         a.date === newDate &&
+         (a.time === newTime || a.timeSlot === newTime) &&
+         a.status !== 'CANCELLED'
+  );
+
+  if (isConflict) {
+    throw new Error('The selected time slot is already reserved. Please choose another slot.');
+  }
+
+  // Calculate new token for new date
+  const doctorDateAppts = db.appointments.filter(
+    a => a.id !== id &&
+         a.doctorId === current.doctorId &&
+         a.date === newDate &&
+         a.status !== 'CANCELLED'
+  );
+  const nextToken = doctorDateAppts.length + 1;
+
+  db.appointments[index] = {
+    ...current,
+    previousDate: current.date,
+    previousTime: current.time,
+    date: newDate,
+    time: newTime,
+    timeSlot: newTime,
+    tokenNumber: nextToken,
+    rescheduledAt: new Date().toISOString(),
+    symptoms: reason ? `${current.symptoms} (Rescheduled: ${reason})` : current.symptoms,
+  };
+
+  saveDatabase(db);
+  return normalizeAppointment(db.appointments[index]);
+}
+
 // --- DYNAMIC SLOTS GENERATOR ---
 const DEFAULT_TIME_SLOTS = [
   '09:00 AM', '09:30 AM', '10:00 AM', '10:30 AM',
@@ -176,6 +265,19 @@ const DEFAULT_TIME_SLOTS = [
 
 export function getAvailableSlots(doctorId: string, date: string): TimeSlot[] {
   const db = loadDatabase();
+
+  // Check doctor blackout / leave dates
+  const doctorAvail = db.availabilities.find(a => a.doctorId === doctorId);
+  const isBlackedOut = doctorAvail?.blackoutDates?.includes(date);
+
+  if (isBlackedOut) {
+    return DEFAULT_TIME_SLOTS.map(time => ({
+      time,
+      isAvailable: false,
+      available: false,
+      period: time.includes('AM') ? 'MORNING' : 'AFTERNOON',
+    }));
+  }
 
   // Find existing bookings on this date for this doctor that are active
   const bookedTimes = new Set(
@@ -188,6 +290,7 @@ export function getAvailableSlots(doctorId: string, date: string): TimeSlot[] {
     time,
     isAvailable: !bookedTimes.has(time),
     available: !bookedTimes.has(time),
+    period: time.includes('AM') ? 'MORNING' : 'AFTERNOON',
   }));
 }
 

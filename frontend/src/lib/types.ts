@@ -29,6 +29,17 @@ export interface Doctor {
   location: string;
   hospital: string;
   availableDays: string[]; // e.g. ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
+  reviews?: DoctorReview[];
+}
+
+export interface DoctorReview {
+  id: string;
+  doctorId: string;
+  patientName: string;
+  rating: number; // 1 to 5
+  comment: string;
+  date: string;
+  verifiedVisit?: boolean;
 }
 
 export interface DoctorAvailability {
@@ -41,6 +52,7 @@ export interface DoctorAvailability {
   slotDurationMinutes: number; // 30
   maxCapacity?: number; // 1
   isActive?: boolean;
+  blackoutDates?: string[]; // e.g. ["2026-11-10", "2026-11-11"]
 }
 
 export type AppointmentStatus = 'SCHEDULED' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED' | 'PENDING';
@@ -82,6 +94,9 @@ export interface Appointment {
   symptoms: string;
   cancellationReason?: string;
   prescription?: Prescription;
+  rescheduledAt?: string;
+  previousDate?: string;
+  previousTime?: string;
   createdAt: string;
 }
 
@@ -90,4 +105,14 @@ export interface TimeSlot {
   isAvailable: boolean;
   available?: boolean;
   appointmentId?: string;
+  period?: 'MORNING' | 'AFTERNOON';
+}
+
+export interface NotificationItem {
+  id: string;
+  title: string;
+  message: string;
+  timestamp: string;
+  read: boolean;
+  type: 'APPOINTMENT' | 'PRESCRIPTION' | 'QUEUE';
 }

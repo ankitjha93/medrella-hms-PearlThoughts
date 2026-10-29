@@ -14,12 +14,11 @@ gantt
     Phase 1: Foundation & UI            :done, 2026-10-25, 2026-10-27
     Phase 2: Slot Booking Engine        :done, 2026-10-27, 2026-10-28
     Phase 3: Clinical Suite & OPD Queue :done, 2026-10-28, 2026-10-28
+    Phase 4: Appointment Rescheduling   :done, 2026-10-28, 2026-10-28
+    Phase 5: Doctor Leave & Blackouts   :done, 2026-10-28, 2026-10-28
+    Phase 6: AI Clinical Symptom Triage :done, 2026-10-28, 2026-10-28
     section Active
-    Phase 4: Appointment Rescheduling   :active, 2026-10-28, 2026-10-29
-    section Upcoming
-    Phase 5: Doctor Leave & Shift Blackout: 2026-10-29, 2026-10-31
-    Phase 6: AI Clinical Symptom Triage : 2026-11-01, 2026-11-03
-    Phase 7: Doctor Ratings & Reviews   : 2026-11-03, 2026-11-05
+    Phase 7: Doctor Profiles & Reviews  :active, 2026-10-29, 2026-10-31
 ```
 
 ---
