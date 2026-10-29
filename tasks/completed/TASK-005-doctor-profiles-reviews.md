@@ -69,3 +69,4 @@ Build a dedicated doctor profile page (`/doctors/[id]`) providing detailed clini
 - [x] Automated REST check verifies `POST /api/doctors/doc_1/reviews` (7/7 tests pass).
 - [x] Production build succeeds with 0 errors across 15 routes.
 - [x] Documented in `progress.md` and `CHANGELOG.md`.
+
