@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Appointment } from "@/lib/types";
+import { Appointment, BillingInvoice, PatientProfile } from "@/lib/types";
 import { useRole } from "@/components/RoleContext";
 import { downloadCalendarEvent } from "@/lib/calendar";
 import {
@@ -32,15 +32,25 @@ import {
   Heart,
   PhoneCall,
   Sparkles,
+  DollarSign,
+  Receipt,
+  CreditCard,
+  ChevronRight,
+  TrendingUp,
 } from "lucide-react";
 
 export default function PatientAppointmentsPage() {
   const { currentUser, setRole } = useRole();
+  const [activeTab, setActiveTab] = useState<"VISITS" | "EHR" | "INVOICES">("VISITS");
   const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [invoices, setInvoices] = useState<BillingInvoice[]>([]);
+  const [profile, setProfile] = useState<PatientProfile | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [filter, setFilter] = useState<string>("ALL");
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [prescriptionAppt, setPrescriptionAppt] = useState<Appointment | null>(null);
+  const [viewInvoice, setViewInvoice] = useState<BillingInvoice | null>(null);
+  const [payingInvoice, setPayingInvoice] = useState<string | null>(null);
 
   // Reschedule State (TASK-004)
   const [rescheduleAppt, setRescheduleAppt] = useState<Appointment | null>(null);
@@ -52,20 +62,54 @@ export default function PatientAppointmentsPage() {
   const [rescheduleSuccess, setRescheduleSuccess] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchAppointments();
+    fetchPatientData();
   }, [currentUser]);
 
-  const fetchAppointments = async () => {
+  const fetchPatientData = async () => {
     setLoading(true);
     try {
-      const pId = currentUser.patientId || "pat-01";
-      const res = await fetch(`/api/appointments?patientId=${pId}`);
-      const data = await res.json();
-      setAppointments(data.appointments || []);
+      const pId = currentUser.patientId || "pat_1";
+      const [apptRes, invRes, profRes] = await Promise.all([
+        fetch(`/api/appointments?patientId=${pId}`),
+        fetch(`/api/admin/invoices?patientId=${pId}`),
+        fetch(`/api/patient/profile?patientId=${pId}`),
+      ]);
+
+      const [apptData, invData, profData] = await Promise.all([
+        apptRes.json(),
+        invRes.json(),
+        profRes.json(),
+      ]);
+
+      setAppointments(apptData.appointments || []);
+      setInvoices(invData.invoices || []);
+      if (profData.success) setProfile(profData.profile);
     } catch (err) {
-      console.error("Failed to load patient appointments", err);
+      console.error("Failed to load patient data", err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handlePayInvoice = async (invoiceId: string) => {
+    setPayingInvoice(invoiceId);
+    try {
+      const res = await fetch(`/api/admin/invoices/${invoiceId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "PAID", paymentMethod: "Credit Card (Online Portal)" }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setInvoices(invoices.map((inv) => (inv.id === invoiceId ? data.invoice : inv)));
+        if (viewInvoice && viewInvoice.id === invoiceId) {
+          setViewInvoice(data.invoice);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to settle invoice", err);
+    } finally {
+      setPayingInvoice(null);
     }
   };
 
@@ -126,7 +170,7 @@ export default function PatientAppointmentsPage() {
         setRescheduleAppt(null);
         setRescheduleSuccess(null);
       }, 1500);
-      await fetchAppointments();
+      await fetchPatientData();
     } catch (err) {
       alert(err instanceof Error ? err.message : "Error rescheduling visit");
     } finally {
@@ -194,7 +238,7 @@ export default function PatientAppointmentsPage() {
         throw new Error(errorData.error || "Failed to cancel appointment");
       }
 
-      await fetchAppointments();
+      await fetchPatientData();
     } catch (err) {
       alert(err instanceof Error ? err.message : "Error cancelling appointment");
     } finally {
@@ -270,15 +314,15 @@ export default function PatientAppointmentsPage() {
         <div className="space-y-2.5">
           <div className="flex items-center space-x-2">
             <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-              Verified Patient Health Record
+              Verified Patient Health Record (MPI)
             </span>
-            <span className="text-slate-400 text-xs font-mono">MRN-9284-MED</span>
+            <span className="text-emerald-400 text-xs font-mono font-bold">{profile?.mrn || "MRN-2026-0941"}</span>
           </div>
           <h2 className="text-2xl font-black tracking-tight">{currentUser.name}</h2>
           <div className="flex flex-wrap items-center gap-4 text-xs text-slate-300">
             <span className="flex items-center space-x-1.5">
               <Droplets className="w-3.5 h-3.5 text-rose-400" />
-              <span>Blood Group: <strong className="text-white">O+</strong></span>
+              <span>Blood Group: <strong className="text-white">{profile?.bloodGroup || "O+"}</strong></span>
             </span>
             <span className="flex items-center space-x-1.5">
               <Heart className="w-3.5 h-3.5 text-rose-400" />
@@ -286,11 +330,11 @@ export default function PatientAppointmentsPage() {
             </span>
             <span className="flex items-center space-x-1.5">
               <BadgeAlert className="w-3.5 h-3.5 text-amber-400" />
-              <span>Allergies: <strong className="text-white">Penicillin (Mild)</strong></span>
+              <span>Allergies: <strong className="text-white">{profile?.allergies?.join(", ") || "Penicillin"}</strong></span>
             </span>
             <span className="flex items-center space-x-1.5">
               <PhoneCall className="w-3.5 h-3.5 text-sky-400" />
-              <span>Emergency: <strong className="text-white">+1 (555) 019-9922</strong></span>
+              <span>Emergency: <strong className="text-white">{profile?.emergencyContact?.phone || "+1 (555) 987-1234"}</strong></span>
             </span>
           </div>
         </div>
@@ -309,11 +353,42 @@ export default function PatientAppointmentsPage() {
           </div>
           <div className="bg-blue-500/20 rounded-2xl px-4 py-3 text-center border border-blue-500/30 min-w-[80px]">
             <div className="text-2xl font-black text-blue-400">
-              {appointments.filter((a) => a.status === "COMPLETED").length}
+              {invoices.length}
             </div>
-            <div className="text-[10px] font-semibold text-blue-300 uppercase tracking-wider">Completed</div>
+            <div className="text-[10px] font-semibold text-blue-300 uppercase tracking-wider">Invoices</div>
           </div>
         </div>
+      </div>
+
+      {/* Patient Module Navigation Tabs */}
+      <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-3 overflow-x-auto">
+        {[
+          { id: "VISITS", label: "My Appointments", icon: Calendar, count: appointments.length },
+          { id: "EHR", label: "Longitudinal EHR Timeline", icon: Activity, count: appointments.filter(a => a.status === "COMPLETED").length },
+          { id: "INVOICES", label: "Invoices & Receipts", icon: DollarSign, count: invoices.length },
+        ].map((tab) => {
+          const Icon = tab.icon;
+          const isActive = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as any)}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer ${
+                isActive
+                  ? "bg-emerald-600 text-white shadow-sm shadow-emerald-600/30"
+                  : "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700"
+              }`}
+            >
+              <Icon className="w-4 h-4" />
+              <span>{tab.label}</span>
+              <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-extrabold ${
+                isActive ? "bg-white/25 text-white" : "bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200"
+              }`}>
+                {tab.count}
+              </span>
+            </button>
+          );
+        })}
       </div>
 
       {/* Demo Tip Banner */}
@@ -331,27 +406,30 @@ export default function PatientAppointmentsPage() {
         </p>
       </div>
 
-      {/* Filter Tabs */}
-      <div className="flex items-center space-x-2 border-b border-slate-200 dark:border-slate-800 pb-2">
-        {[
-          { key: "ALL", label: "All Bookings" },
-          { key: "UPCOMING", label: "Upcoming / Confirmed" },
-          { key: "COMPLETED", label: "Completed" },
-          { key: "CANCELLED", label: "Cancelled" },
-        ].map((t) => (
-          <button
-            key={t.key}
-            onClick={() => setFilter(t.key)}
-            className={`px-4 py-2 rounded-xl text-xs font-semibold transition ${
-              filter === t.key
-                ? "bg-slate-900 dark:bg-emerald-600 text-white"
-                : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
+      {/* TAB 1: VISITS & APPOINTMENTS */}
+      {activeTab === "VISITS" && (
+        <div className="space-y-6">
+          {/* Filter Tabs */}
+          <div className="flex items-center space-x-2 border-b border-slate-200 dark:border-slate-800 pb-2">
+            {[
+              { key: "ALL", label: "All Bookings" },
+              { key: "UPCOMING", label: "Upcoming / Confirmed" },
+              { key: "COMPLETED", label: "Completed" },
+              { key: "CANCELLED", label: "Cancelled" },
+            ].map((t) => (
+              <button
+                key={t.key}
+                onClick={() => setFilter(t.key)}
+                className={`px-4 py-2 rounded-xl text-xs font-semibold transition ${
+                  filter === t.key
+                    ? "bg-slate-900 dark:bg-emerald-600 text-white"
+                    : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
 
       {/* Appointments List */}
       {loading ? (
@@ -475,6 +553,308 @@ export default function PatientAppointmentsPage() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+      </div>
+      )}
+
+      {/* TAB 2: LONGITUDINAL EHR MEDICAL TIMELINE */}
+      {activeTab === "EHR" && (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
+            <div>
+              <h2 className="text-base font-bold text-slate-900 dark:text-white">Longitudinal Electronic Medical Record (EMR)</h2>
+              <p className="text-xs text-slate-500">Comprehensive chronological encounter timeline and prescription records</p>
+            </div>
+            <span className="text-xs font-mono font-bold text-emerald-600 dark:text-emerald-400">
+              {profile?.mrn || "MRN-2026-0941"}
+            </span>
+          </div>
+
+          {appointments.filter(a => a.status === "COMPLETED").length === 0 ? (
+            <div className="bg-white dark:bg-slate-900 rounded-3xl p-12 text-center border border-slate-200 dark:border-slate-800 space-y-3">
+              <Activity className="w-10 h-10 text-slate-400 mx-auto" />
+              <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200">No completed consultations yet</h3>
+              <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                Once a doctor conducts an OPD consultation and signs off your clinical SOAP note, your permanent medical history will appear here.
+              </p>
+            </div>
+          ) : (
+            <div className="relative border-l-2 border-emerald-500 ml-4 sm:ml-6 pl-6 space-y-8">
+              {appointments
+                .filter(a => a.status === "COMPLETED")
+                .map((appt) => (
+                  <div key={appt.id} className="relative group">
+                    {/* Timeline Node Dot */}
+                    <div className="absolute -left-[31px] top-1.5 w-4 h-4 rounded-full bg-emerald-600 border-4 border-white dark:border-slate-950 shadow-xs" />
+
+                    <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-xs space-y-4">
+                      
+                      {/* Visit Header */}
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
+                        <div className="flex items-center gap-2.5">
+                          <img
+                            src={appt.doctorAvatar || "https://images.unsplash.com/photo-1559839734-2b71ea197ec2?auto=format&fit=crop&q=80&w=300"}
+                            alt={appt.doctorName}
+                            className="w-10 h-10 rounded-full object-cover border border-slate-200 dark:border-slate-700"
+                          />
+                          <div>
+                            <div className="font-bold text-xs text-slate-900 dark:text-white">
+                              {appt.doctorName} • <span className="text-emerald-600 dark:text-emerald-400">{appt.doctorSpecialty}</span>
+                            </div>
+                            <div className="text-[11px] text-slate-400 flex items-center gap-2">
+                              <span>Encounter Date: {appt.date} ({appt.timeSlot || appt.time})</span>
+                              <span>•</span>
+                              <span className="font-mono">Ref: {appt.id}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {appt.prescription && (
+                          <button
+                            onClick={() => setPrescriptionAppt(appt)}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-50 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 transition cursor-pointer self-start sm:self-center"
+                          >
+                            <Printer className="w-3.5 h-3.5" />
+                            <span>Clinical Slip</span>
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Clinical Assessment / Diagnosis */}
+                      <div>
+                        <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Diagnosis & Assessment</span>
+                        <div className="font-bold text-slate-900 dark:text-white text-sm mt-0.5">
+                          {appt.prescription?.diagnosis || "Clinical Review & Examination"}
+                        </div>
+                        {appt.prescription?.advice && (
+                          <p className="text-xs text-slate-600 dark:text-slate-300 mt-1 bg-slate-50 dark:bg-slate-800/60 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800">
+                            <strong>Doctor's Advice:</strong> {appt.prescription.advice}
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Prescribed Medications */}
+                      {appt.prescription && appt.prescription.medicines.length > 0 && (
+                        <div>
+                          <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 flex items-center gap-1">
+                            <Pill className="w-3 h-3 text-emerald-600" />
+                            <span>Prescribed Pharmacotherapy</span>
+                          </span>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-1.5">
+                            {appt.prescription.medicines.map((med, mIdx) => (
+                              <div key={mIdx} className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs">
+                                <div className="font-bold text-slate-900 dark:text-white">{med.medicineName}</div>
+                                <div className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold">{med.dosage} • {med.frequency}</div>
+                                <div className="text-[10px] text-slate-400">Duration: {med.duration}</div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Ordered Lab Tests */}
+                      {appt.prescription?.labOrders && appt.prescription.labOrders.length > 0 && (
+                        <div>
+                          <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
+                            Pathology & Diagnostic Orders
+                          </span>
+                          <div className="flex flex-wrap gap-1.5 mt-1">
+                            {appt.prescription.labOrders.map((lab, lIdx) => (
+                              <span key={lIdx} className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                                {lab}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                    </div>
+                  </div>
+                ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* TAB 3: INVOICES & RECEIPTS */}
+      {activeTab === "INVOICES" && (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
+            <div>
+              <h2 className="text-base font-bold text-slate-900 dark:text-white">Hospital Billing Statements & Receipts</h2>
+              <p className="text-xs text-slate-500">Itemized billing statements, payment receipts, and settlement ledger</p>
+            </div>
+            <span className="text-xs font-bold text-slate-500">
+              Total Invoices: {invoices.length}
+            </span>
+          </div>
+
+          {invoices.length === 0 ? (
+            <div className="bg-white dark:bg-slate-900 rounded-3xl p-12 text-center border border-slate-200 dark:border-slate-800 space-y-3">
+              <Receipt className="w-10 h-10 text-slate-400 mx-auto" />
+              <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200">No billing invoices found</h3>
+              <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                Invoices are generated upon completing consultation encounters or ordering diagnostic investigations.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {invoices.map((inv) => (
+                <div
+                  key={inv.id}
+                  className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                >
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono font-bold text-xs text-emerald-600 dark:text-emerald-400">
+                        {inv.invoiceNumber}
+                      </span>
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
+                        inv.status === "PAID"
+                          ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-800"
+                          : "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-400 border border-amber-300 dark:border-amber-800"
+                      }`}>
+                        {inv.status}
+                      </span>
+                      {inv.paymentMethod && (
+                        <span className="text-[10px] text-slate-400 font-medium">
+                          via {inv.paymentMethod}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="text-xs text-slate-700 dark:text-slate-300 font-medium">
+                      {inv.items.map(item => item.description).join(" • ")}
+                    </div>
+
+                    <div className="text-[11px] text-slate-400 flex items-center gap-3">
+                      <span>Invoice Date: {inv.date}</span>
+                      <span>•</span>
+                      <span>Provider: {inv.doctorName || "OPD Clinic"}</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3 shrink-0 self-end sm:self-center">
+                    <div className="text-right mr-2">
+                      <div className="font-black text-slate-900 dark:text-white text-base">
+                        ${inv.total.toFixed(2)}
+                      </div>
+                      <div className="text-[10px] text-slate-400">Tax incl.</div>
+                    </div>
+
+                    <button
+                      onClick={() => setViewInvoice(inv)}
+                      className="p-2 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition cursor-pointer"
+                      title="View / Print Receipt"
+                    >
+                      <Printer className="w-4 h-4" />
+                    </button>
+
+                    {inv.status === "PENDING" && (
+                      <button
+                        onClick={() => handlePayInvoice(inv.id)}
+                        disabled={payingInvoice === inv.id}
+                        className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md shadow-emerald-600/20 transition cursor-pointer flex items-center gap-1.5"
+                      >
+                        {payingInvoice === inv.id ? (
+                          <Activity className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <CreditCard className="w-3.5 h-3.5" />
+                        )}
+                        <span>Pay Online</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* MODAL: PATIENT INVOICE & RECEIPT MODAL */}
+      {viewInvoice && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs animate-in fade-in">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                <Receipt className="w-5 h-5 text-emerald-600" />
+                <h3 className="font-extrabold text-base text-slate-900 dark:text-white">
+                  Hospital Billing Receipt
+                </h3>
+              </div>
+              <button 
+                onClick={() => setViewInvoice(null)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-3 text-xs font-mono">
+              <div className="flex justify-between border-b border-slate-200 dark:border-slate-700 pb-2">
+                <div>
+                  <div className="font-bold text-slate-900 dark:text-white">{viewInvoice.invoiceNumber}</div>
+                  <div className="text-[10px] text-slate-500">{viewInvoice.date}</div>
+                </div>
+                <div className="text-right">
+                  <div className="font-bold text-slate-800 dark:text-slate-200">{viewInvoice.patientName}</div>
+                  <div className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold">{viewInvoice.patientMRN}</div>
+                </div>
+              </div>
+
+              <div className="space-y-1.5 py-1">
+                {viewInvoice.items.map((item, idx) => (
+                  <div key={idx} className="flex justify-between text-slate-700 dark:text-slate-300">
+                    <span>{item.description} (x{item.quantity})</span>
+                    <span className="font-bold">${item.total.toFixed(2)}</span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="border-t border-slate-200 dark:border-slate-700 pt-2 space-y-1">
+                <div className="flex justify-between text-slate-500">
+                  <span>Subtotal:</span>
+                  <span>${viewInvoice.subtotal.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-slate-500">
+                  <span>Tax (5%):</span>
+                  <span>${viewInvoice.tax.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between font-black text-sm text-slate-900 dark:text-white pt-1 border-t border-slate-200 dark:border-slate-700">
+                  <span>Total Amount:</span>
+                  <span>${viewInvoice.total.toFixed(2)}</span>
+                </div>
+              </div>
+
+              <div className="pt-2 text-[10px] text-slate-400 text-center">
+                Status: <span className="font-bold text-emerald-600 uppercase">{viewInvoice.status}</span>
+                {viewInvoice.paymentMethod && ` via ${viewInvoice.paymentMethod}`}
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between pt-2">
+              <button
+                type="button"
+                onClick={() => window.print()}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+              >
+                <Printer className="w-4 h-4" />
+                <span>Print Receipt</span>
+              </button>
+
+              {viewInvoice.status === "PENDING" && (
+                <button
+                  type="button"
+                  onClick={() => handlePayInvoice(viewInvoice.id)}
+                  className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md shadow-emerald-600/20 cursor-pointer"
+                >
+                  Pay Online
+                </button>
+              )}
+            </div>
+          </div>
         </div>
       )}
 

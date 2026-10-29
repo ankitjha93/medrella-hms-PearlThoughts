@@ -122,6 +122,14 @@ export default function DoctorDashboardPage() {
   const [advice, setAdvice] = useState<string>("");
   const [followUpDate, setFollowUpDate] = useState<string>("");
   const [doctorNotes, setDoctorNotes] = useState<string>("");
+  const [vitals, setVitals] = useState({
+    bloodPressure: "124/82 mmHg",
+    heartRate: "72 bpm",
+    temperature: "98.6 °F",
+    oxygenSaturation: "99%",
+    weightKg: "70 kg",
+  });
+  const [labOrders, setLabOrders] = useState<string[]>([]);
   const [medicines, setMedicines] = useState<PrescriptionItem[]>([
     { medicineName: "", dosage: "", frequency: "Twice daily after meals", duration: "5 days" },
   ]);
@@ -208,19 +216,18 @@ export default function DoctorDashboardPage() {
     setActionLoading(consultationAppt.id);
     try {
       const validMedicines = medicines.filter((m) => m.medicineName.trim().length > 0);
-      const res = await fetch(`/api/appointments/${consultationAppt.id}`, {
-        method: "PATCH",
+      const res = await fetch(`/api/appointments/${consultationAppt.id}/encounter`, {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          status: "COMPLETED",
-          prescription: {
-            diagnosis: diagnosis || "Consultation Completed",
-            medicines: validMedicines,
-            advice,
-            followUpDate,
-            doctorNotes,
-            prescribedAt: new Date().toISOString(),
-          },
+          vitals,
+          diagnosis: diagnosis || "Consultation Completed",
+          medicines: validMedicines,
+          advice,
+          followUpDate,
+          doctorNotes,
+          labOrders,
+          chiefComplaint: consultationAppt.symptoms,
         }),
       });
 
@@ -707,6 +714,69 @@ export default function DoctorDashboardPage() {
                 </div>
               </div>
 
+              {/* Objective: Patient Clinical Vitals */}
+              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                    <Activity className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Objective Clinical Vitals</span>
+                  </span>
+                  <span className="text-[10px] text-slate-400 font-mono">Triage Bedside Entry</span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-xs">
+                  <div>
+                    <label className="block text-[10px] font-semibold text-slate-500 mb-0.5">Blood Pressure</label>
+                    <input
+                      type="text"
+                      value={vitals.bloodPressure}
+                      onChange={(e) => setVitals({ ...vitals, bloodPressure: e.target.value })}
+                      placeholder="120/80"
+                      className="w-full p-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-semibold text-slate-500 mb-0.5">Heart Rate</label>
+                    <input
+                      type="text"
+                      value={vitals.heartRate}
+                      onChange={(e) => setVitals({ ...vitals, heartRate: e.target.value })}
+                      placeholder="72 bpm"
+                      className="w-full p-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-semibold text-slate-500 mb-0.5">Temperature</label>
+                    <input
+                      type="text"
+                      value={vitals.temperature}
+                      onChange={(e) => setVitals({ ...vitals, temperature: e.target.value })}
+                      placeholder="98.6 °F"
+                      className="w-full p-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-semibold text-slate-500 mb-0.5">SpO2 Oxygen</label>
+                    <input
+                      type="text"
+                      value={vitals.oxygenSaturation}
+                      onChange={(e) => setVitals({ ...vitals, oxygenSaturation: e.target.value })}
+                      placeholder="99%"
+                      className="w-full p-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-semibold text-slate-500 mb-0.5">Patient Weight</label>
+                    <input
+                      type="text"
+                      value={vitals.weightKg}
+                      onChange={(e) => setVitals({ ...vitals, weightKg: e.target.value })}
+                      placeholder="70 kg"
+                      className="w-full p-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white"
+                    />
+                  </div>
+                </div>
+              </div>
+
               {/* Diagnosis Input */}
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1">
@@ -720,6 +790,46 @@ export default function DoctorDashboardPage() {
                   className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-900 dark:text-white focus:ring-2 focus:ring-emerald-500"
                   placeholder="e.g. Stage 1 Essential Hypertension / Acute Bronchitis"
                 />
+              </div>
+
+              {/* Diagnostic Lab Orders */}
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1.5">
+                  Diagnostic Lab Investigations (Order to Pathology)
+                </label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {[
+                    "Complete Blood Count (CBC)",
+                    "Comprehensive Lipid Panel",
+                    "12-Lead Electrocardiogram (ECG)",
+                    "Liver Function Test (LFT)",
+                    "Fasting Blood Glucose",
+                    "Chest X-Ray (PA View)",
+                  ].map((test) => {
+                    const isChecked = labOrders.includes(test);
+                    return (
+                      <button
+                        key={test}
+                        type="button"
+                        onClick={() => {
+                          if (isChecked) {
+                            setLabOrders(labOrders.filter((t) => t !== test));
+                          } else {
+                            setLabOrders([...labOrders, test]);
+                          }
+                        }}
+                        className={`p-2 rounded-xl text-left text-xs font-medium border transition flex items-center justify-between cursor-pointer ${
+                          isChecked
+                            ? "bg-emerald-50 text-emerald-900 border-emerald-300 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-700"
+                            : "bg-white dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50"
+                        }`}
+                      >
+                        <span className="truncate">{test}</span>
+                        {isChecked && <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0 ml-1" />}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
               {/* Medicines / Rx Table */}

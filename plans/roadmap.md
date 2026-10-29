@@ -51,20 +51,18 @@ gantt
 - Collision prevention on rescheduling target slot.
 - See `tasks/current-task.md` for complete specification.
 
-### Phase 5: Doctor Leave & Shift Blackout ⏳ (UPCOMING)
-- Doctor date blackout / vacation manager in `/doctor`.
-- Immediate disabling of booking slots during approved leave dates without altering baseline weekly shifts.
-- Emergency off notification for scheduled patients.
-
-### Phase 6: AI Clinical Symptom Triage & Specialist Matcher ⏳ (UPCOMING)
-- Interactive conversational triage assistant widget on landing page.
-- Evaluates patient symptoms (e.g. *"chest pain radiating down left arm"*, *"persistent itchy eczema"*) and suggests:
-  - Appropriate medical department (Cardiology vs Dermatology).
-  - Urgency rating (Routine vs Urgent).
-  - 1-click booking CTA pre-selecting the matched specialist.
-
-### Phase 7: Doctor Detail Pages & Patient Reviews ⏳ (UPCOMING)
+### Phase 5: Doctor Detail Pages & Patient Reviews ✅ (COMPLETED)
 - Dedicated profile route `/doctors/[id]` with medical credentials, hospital affiliations, and consultation room details.
-- Post-consultation patient review and 1–5 star rating submission.
+- Post-consultation patient review and 1–5 star rating submission via `POST /api/doctors/[id]/reviews`.
 - Real-time rating aggregation displayed across doctor discovery cards.
+
+### Phase 6: Enterprise EMR Architecture: Patient, Doctor, and Admin Modules ✅ (COMPLETED)
+- **Patient Module (`/patient`)**: Master Patient Index (MPI/MRN), Longitudinal EHR medical timeline, and Itemized Billing statements with receipts & online settlement.
+- **Doctor Module (`/doctor`)**: Live 3-Stage OPD Triage Queue, 1-Click "Call Next Patient", SOAP Encounter with Vitals bedside entry, ICD-10 diagnosis presets, diagnostic lab orders, and e-Prescribing with multi-drug regimens.
+- **Admin Module (`/admin`)**: Executive Operations Dashboard (revenue, footfall, staff metrics), Specialist Roster with Onboarding modal, Clinical Departments directory, Hospital Billing Ledger with status reconciliation, and Security Audit Trail.
+- **Persona Switcher**: Seamless switching between John Doe (Patient), Dr. Jane Smith (Doctor), Dr. Robert Chen (Doctor), and Sarah Jenkins (Admin).
+
+### Phase 7: AI Clinical Symptom Triage & Specialist Matcher ⏳ (UPCOMING)
+- Interactive conversational triage assistant widget on landing page.
+- Evaluates patient symptoms (e.g. *"chest pain radiating down left arm"*, *"persistent itchy eczema"*) and suggests appropriate medical department, urgency rating, and 1-click booking CTA.
 

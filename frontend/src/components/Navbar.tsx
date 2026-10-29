@@ -9,6 +9,7 @@ import {
   Stethoscope,
   Calendar,
   ShieldCheck,
+  Building2,
   ChevronDown,
   Check,
   Sun,
@@ -83,8 +84,9 @@ export function Navbar() {
 
   const navLinks = [
     { href: "/doctors", label: "Find Doctors", icon: Stethoscope },
-    { href: "/patient", label: "My Appointments", icon: Calendar },
-    { href: "/doctor", label: "Doctor Dashboard", icon: ShieldCheck, badge: "Provider" },
+    { href: "/patient", label: "Patient EHR", icon: Calendar },
+    { href: "/doctor", label: "Doctor OPD", icon: ShieldCheck, badge: "Provider" },
+    { href: "/admin", label: "Hospital Admin", icon: Building2, badge: "Ops" },
   ];
 
   return (

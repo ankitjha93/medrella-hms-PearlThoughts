@@ -181,6 +181,102 @@ async function main() {
     }
   });
 
+  // 8. Admin Hospital KPIs & Stats
+  await runTest('GET /api/admin/stats returns valid executive hospital KPIs', async () => {
+    const res = await fetch(`${BASE_URL}/api/admin/stats`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    if (!data.success || !data.stats || typeof data.stats.totalDoctors !== 'number' || typeof data.stats.totalRevenue !== 'number') {
+      throw new Error('Hospital stats format invalid or missing required metrics');
+    }
+  });
+
+  // 9. Admin Onboard Specialist
+  let newDoctorId = null;
+  await runTest('POST /api/admin/doctors onboards specialist & updates roster', async () => {
+    const doctorPayload = {
+      name: 'Dr. Arthur Pendelton',
+      specialization: 'Neurology',
+      experienceYears: 10,
+      consultationFee: 85,
+      education: 'MD - Johns Hopkins Medicine',
+      roomNumber: 'Cabin 602',
+      hospital: 'Medrella Neuroscience Pavilion',
+    };
+
+    const res = await fetch(`${BASE_URL}/api/admin/doctors`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(doctorPayload),
+    });
+
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    if (!data.success || !data.doctor?.id || data.doctor.name !== 'Dr. Arthur Pendelton') {
+      throw new Error('Doctor onboarding failed to return valid doctor record');
+    }
+    newDoctorId = data.doctor.id;
+  });
+
+  // 10. Admin Clinical Departments Directory
+  await runTest('GET /api/admin/departments returns clinical departments with HODs', async () => {
+    const res = await fetch(`${BASE_URL}/api/admin/departments`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    if (!data.success || !Array.isArray(data.departments) || data.departments.length === 0) {
+      throw new Error('Departments catalog was empty or invalid');
+    }
+    const hasCardiology = data.departments.some(d => d.code === 'CARD');
+    if (!hasCardiology) throw new Error('Cardiology department was missing from directory');
+  });
+
+  // 11. Admin Hospital Billing Ledger & Status Reconciliation
+  await runTest('GET & PATCH /api/admin/invoices audits and settles billing invoices', async () => {
+    const listRes = await fetch(`${BASE_URL}/api/admin/invoices`);
+    if (!listRes.ok) throw new Error(`HTTP ${listRes.status}`);
+    const listData = await listRes.json();
+    if (!listData.success || !Array.isArray(listData.invoices) || listData.invoices.length === 0) {
+      throw new Error('Invoice ledger was empty');
+    }
+
+    const targetInvoice = listData.invoices[0];
+    const patchRes = await fetch(`${BASE_URL}/api/admin/invoices/${targetInvoice.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'PAID', paymentMethod: 'UPI' }),
+    });
+
+    if (!patchRes.ok) throw new Error(`HTTP ${patchRes.status}`);
+    const patchData = await patchRes.json();
+    if (!patchData.success || patchData.invoice?.status !== 'PAID') {
+      throw new Error('Invoice status was not updated to PAID');
+    }
+  });
+
+  // 12. Security & Compliance Audit Log
+  await runTest('GET /api/admin/audit-logs returns chronological security audit events', async () => {
+    const res = await fetch(`${BASE_URL}/api/admin/audit-logs`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    if (!data.success || !Array.isArray(data.logs) || data.logs.length === 0) {
+      throw new Error('Audit logs collection was empty');
+    }
+    const firstLog = data.logs[0];
+    if (!firstLog.action || !firstLog.actor || !firstLog.timestamp) {
+      throw new Error('Audit log event structure is missing required HIPAA/EHR metadata');
+    }
+  });
+
+  // 13. Patient MPI Profile
+  await runTest('GET /api/patient/profile returns Master Patient Index with MRN & emergency contact', async () => {
+    const res = await fetch(`${BASE_URL}/api/patient/profile?patientId=pat_1`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    if (!data.success || !data.profile?.mrn || !data.profile.emergencyContact?.phone) {
+      throw new Error('Patient profile did not include valid MRN or emergency contact');
+    }
+  });
+
   console.log('\x1b[36m%s\x1b[0m', '-------------------------------------------------');
   const resultColor = passedTests === totalTests ? '\x1b[32m' : '\x1b[33m';
   console.log(`${resultColor}%s\x1b[0m`, `Test Results: ${passedTests} / ${totalTests} Tests Passed`);

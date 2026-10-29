@@ -34,6 +34,7 @@ Current state, completed work, blockers, and next steps for **Medrella HMS**.
 | **Queue Call Advance & Analytics Chart** | ✅ Completed | 2026-10-28 | "Call Next Patient" trigger & weekly volume graph |
 | **Doctor Leave / Vacation Manager**       | ✅ Completed | 2026-10-28 | Blackout dates management without altering baseline shift |
 | **Doctor Detail Pages & Patient Reviews** | ✅ Completed | 2026-10-29 | Dedicated route `/doctors/[id]`, review submission, dynamic ratings (TASK-005) |
+| **Enterprise EMR: Patient, Doctor & Admin Modules** | ✅ Completed | 2026-10-29 | Danphe EMR alignment: MPI/MRN, EHR timeline, SOAP desk, Admin suite, billing ledger (TASK-006) |
 
 ---
 

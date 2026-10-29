@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.6.0] - 2026-10-29
+### Added
+- **Danphe EMR Architecture Alignment (TASK-006)**: Integrated enterprise Hospital Management Information System (HMIS) capabilities inspired by `opensource-emr/hospital-management-emr`.
+- **Admin Module Suite (`/admin`)**:
+  - Executive Operations Dashboard with real-time hospital KPIs (settled revenue, daily footfall, active staff, unsettled invoices).
+  - Specialist Roster directory with search, department filtering, and modal to **Onboard Doctor Specialists**.
+  - Clinical Departments directory (Cardiology, Dermatology, Pediatrics, Orthopedics, Neurology) with HOD and ward locations.
+  - Hospital Billing Ledger with status reconciliation (`PAID`, `PENDING`), itemized fee schedules, and receipt printing.
+  - Security & Compliance Audit Trail recording system and clinical actions.
+- **Enhanced Patient Module (`/patient`)**:
+  - Master Patient Index (MPI) with unique MRN, blood group, allergies, and emergency contact.
+  - Longitudinal Electronic Medical Record (EMR) chronological timeline of visits, diagnoses, vitals, prescriptions, and lab orders.
+  - Billing Statements & Receipts tab with online invoice settlement simulation.
+- **Enhanced Doctor Module (`/doctor`)**:
+  - Live 3-Stage OPD Triage Queue (*Waiting*, *In Consultation*, *Completed*) with "Call Next Patient" advance.
+  - Structured SOAP Clinical Encounter Desk (Subjective, Objective vitals bedside entry, ICD-10 assessment presets, Diagnostic Lab Orders, e-Prescribing).
+- **Admin REST API Endpoints**:
+  - `GET /api/admin/stats`: Hospital executive KPIs.
+  - `GET /api/admin/doctors` & `POST /api/admin/doctors`: Doctor management and onboarding.
+  - `GET /api/admin/departments`: Department directory.
+  - `GET /api/admin/invoices` & `PATCH /api/admin/invoices/[id]`: Hospital billing ledger & reconciliation.
+  - `GET /api/admin/audit-logs`: Audit events log.
+  - `GET /api/patient/profile`: Master Patient Index profile.
+  - `POST /api/appointments/[id]/encounter`: SOAP clinical encounter sign-off.
+- **Demo Switcher Expansion**: Added `Sarah Jenkins` (`user_admin_1`, Hospital Operations Director) to `RoleContext.tsx` and `Navbar.tsx` for 1-click testing across Patient, Doctor, and Admin roles.
+- **Automated Test Matrix Expansion**: Expanded `tests/run-tests.mjs` to 13 integration tests (100% pass rate).
+
+---
+
 ## [0.5.0] - 2026-10-29
 ### Added
 - **Dedicated Doctor Profile Pages (`/doctors/[id]`)**: Full specialist profile with verified credentials, clinical focus, OPD shift rota, and hospital desk location.

@@ -27,13 +27,18 @@ export function RoleProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const switchUser = (userIdOrRole: string) => {
+    const target = userIdOrRole.toLowerCase();
     const found = INITIAL_USERS.find(
       u =>
         u.id === userIdOrRole ||
         u.doctorId === userIdOrRole ||
         (userIdOrRole === 'doc-01' && u.doctorId === 'doc_1') ||
         (userIdOrRole === 'doc-02' && u.doctorId === 'doc_2') ||
-        u.role === userIdOrRole
+        u.role === userIdOrRole ||
+        u.role.toLowerCase() === target ||
+        (target === 'admin' && u.role === 'ADMIN') ||
+        (target === 'doctor' && u.role === 'DOCTOR') ||
+        (target === 'patient' && u.role === 'PATIENT')
     );
     if (found) {
       setCurrentUser(found);
