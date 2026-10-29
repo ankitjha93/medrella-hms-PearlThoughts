@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { doctorId, availabilities, startTime, endTime, slotDurationMinutes } = body;
+    const { doctorId, availabilities, startTime, endTime, slotDurationMinutes, daysOfWeek, blackoutDates } = body;
 
     if (!doctorId) {
       return NextResponse.json(
@@ -49,9 +49,11 @@ export async function POST(request: NextRequest) {
           id: `av_${doctorId}`,
           doctorId,
           dayOfWeek: 'Monday',
+          daysOfWeek: daysOfWeek || ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
           startTime,
           endTime,
           slotDurationMinutes: slotDurationMinutes || 30,
+          blackoutDates: Array.isArray(blackoutDates) ? blackoutDates : [],
           maxCapacity: 1,
           isActive: true,
         },

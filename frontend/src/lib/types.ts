@@ -10,6 +10,24 @@ export interface User {
   patientId?: string; // if user is a patient
 }
 
+export interface PatientProfile {
+  id: string;
+  mrn: string; // Medical Record Number e.g. "MRN-2026-0941"
+  name: string;
+  email: string;
+  phone: string;
+  dateOfBirth: string;
+  gender: 'Male' | 'Female' | 'Other';
+  bloodGroup: string;
+  allergies: string[];
+  chronicConditions: string[];
+  emergencyContact: {
+    name: string;
+    relationship: string;
+    phone: string;
+  };
+}
+
 export interface Doctor {
   id: string;
   name: string;
@@ -28,7 +46,20 @@ export interface Doctor {
   education: string;
   location: string;
   hospital: string;
+  departmentCode?: string;
+  roomNumber?: string;
   availableDays: string[]; // e.g. ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
+  reviews?: DoctorReview[];
+}
+
+export interface DoctorReview {
+  id: string;
+  doctorId: string;
+  patientName: string;
+  rating: number; // 1 to 5
+  comment: string;
+  date: string;
+  verifiedVisit?: boolean;
 }
 
 export interface DoctorAvailability {
@@ -41,12 +72,71 @@ export interface DoctorAvailability {
   slotDurationMinutes: number; // 30
   maxCapacity?: number; // 1
   isActive?: boolean;
+  blackoutDates?: string[]; // e.g. ["2026-11-10", "2026-11-11"]
 }
 
-export type AppointmentStatus = 'SCHEDULED' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED' | 'PENDING';
+export type AppointmentStatus = 'SCHEDULED' | 'CONFIRMED' | 'IN_CONSULTATION' | 'COMPLETED' | 'CANCELLED' | 'PENDING';
+
+export interface PrescriptionItem {
+  medicineName: string;
+  dosage: string;
+  frequency: string;
+  duration: string;
+  instructions?: string;
+}
+
+export interface VitalsRecord {
+  bloodPressure?: string; // "120/80 mmHg"
+  heartRate?: string;     // "72 bpm"
+  temperature?: string;   // "98.6 °F"
+  oxygenSaturation?: string; // "99%"
+  respiratoryRate?: string; // "16 /min"
+  weightKg?: string;      // "68 kg"
+}
+
+export interface SOAPEncounter {
+  id: string;
+  appointmentId: string;
+  patientId: string;
+  doctorId: string;
+  doctorName: string;
+  date: string;
+  subjective: {
+    chiefComplaint: string;
+    historyOfPresentIllness?: string;
+  };
+  objective: {
+    vitals?: VitalsRecord;
+    physicalExamination?: string;
+  };
+  assessment: {
+    diagnosis: string;
+    icd10Code?: string;
+    clinicalNotes?: string;
+  };
+  plan: {
+    prescription: PrescriptionItem[];
+    labOrders?: string[];
+    lifestyleAdvice?: string;
+    followUpDate?: string;
+  };
+  createdAt: string;
+}
+
+export interface Prescription {
+  diagnosis: string;
+  medicines: PrescriptionItem[];
+  advice?: string;
+  followUpDate?: string;
+  prescribedAt: string;
+  doctorNotes?: string;
+  vitals?: VitalsRecord;
+  labOrders?: string[];
+}
 
 export interface Appointment {
   id: string;
+  tokenNumber?: number; // OPD Queue Token e.g. 1, 2, 3
   patientId: string;
   patientName: string;
   patientEmail: string;
@@ -64,7 +154,80 @@ export interface Appointment {
   status: AppointmentStatus;
   symptoms: string;
   cancellationReason?: string;
+  prescription?: Prescription;
+  encounter?: SOAPEncounter;
+  rescheduledAt?: string;
+  previousDate?: string;
+  previousTime?: string;
   createdAt: string;
+}
+
+export interface InvoiceItem {
+  id: string;
+  description: string;
+  category: 'CONSULTATION' | 'LAB_TEST' | 'PHARMACY' | 'PROCEDURE';
+  quantity: number;
+  unitPrice: number;
+  total: number;
+}
+
+export type InvoiceStatus = 'PAID' | 'PENDING' | 'CANCELLED';
+
+export interface BillingInvoice {
+  id: string;
+  invoiceNumber: string; // e.g. "INV-2026-1049"
+  appointmentId?: string;
+  patientId: string;
+  patientName: string;
+  patientMRN: string;
+  doctorId?: string;
+  doctorName?: string;
+  date: string;
+  items: InvoiceItem[];
+  subtotal: number;
+  discount: number;
+  tax: number;
+  total: number;
+  status: InvoiceStatus;
+  paymentMethod?: 'Cash' | 'Credit Card' | 'Insurance' | 'UPI' | 'Direct Debit';
+  paidAt?: string;
+  createdAt: string;
+}
+
+export interface Department {
+  id: string;
+  name: string;
+  code: string;
+  headOfDepartment: string;
+  location: string;
+  activeDoctorsCount: number;
+  status: 'ACTIVE' | 'INACTIVE';
+  description: string;
+}
+
+export interface AuditLog {
+  id: string;
+  timestamp: string;
+  action: string;
+  actor: {
+    id: string;
+    name: string;
+    role: Role;
+  };
+  resource: string;
+  details?: string;
+  severity: 'INFO' | 'WARNING' | 'CRITICAL';
+}
+
+export interface HospitalKPIs {
+  totalDoctors: number;
+  activeAppointmentsToday: number;
+  totalPatients: number;
+  totalRevenue: number;
+  pendingInvoicesCount: number;
+  occupancyRate: number;
+  averageConsultationTimeMinutes: number;
+  completedVisitsCount: number;
 }
 
 export interface TimeSlot {
@@ -72,4 +235,14 @@ export interface TimeSlot {
   isAvailable: boolean;
   available?: boolean;
   appointmentId?: string;
+  period?: 'MORNING' | 'AFTERNOON';
+}
+
+export interface NotificationItem {
+  id: string;
+  title: string;
+  message: string;
+  timestamp: string;
+  read: boolean;
+  type: 'APPOINTMENT' | 'PRESCRIPTION' | 'QUEUE' | 'BILLING' | 'ADMIN';
 }

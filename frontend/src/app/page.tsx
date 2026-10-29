@@ -20,15 +20,18 @@ import {
   Bone,
   Sparkles,
   CheckCircle2,
-  UserCheck,
-  Check,
   MapPin,
   ChevronRight,
-  ShieldAlert,
-  CalendarCheck,
   Stethoscope,
   Building2,
   Users,
+  ChevronDown,
+  ChevronUp,
+  HelpCircle,
+  Ticket,
+  FileText,
+  BadgeCheck,
+  Zap,
 } from "lucide-react";
 
 const SPECIALTIES = [
@@ -40,6 +43,29 @@ const SPECIALTIES = [
   { name: "Neurology", icon: Brain, tag: "Brain & Nerves" },
 ];
 
+const FAQS = [
+  {
+    q: "How does Medrella prevent appointment double-bookings?",
+    a: "Medrella employs an in-memory set collision engine. When you select a date, open slots are calculated in real time based on active physician shift windows. Once booked, that slot is instantly locked across the system with an atomic check, preventing concurrent scheduling.",
+  },
+  {
+    q: "What is the Outpatient (OPD) Queue Token System?",
+    a: "Every confirmed booking receives an auto-incrementing daily queue token (e.g. #OPD-01, #OPD-02). Doctors monitor the live queue via their clinical dashboard with a 'Now Serving' banner, ensuring zero waiting room confusion.",
+  },
+  {
+    q: "Can I download and print my doctor's prescription?",
+    a: "Yes! Once your doctor completes the consultation, an official verified Electronic Health Record (EHR) prescription slip is generated on hospital letterhead. You can view, save as PDF, or print directly using the 'Print Slip' button in your Patient Portal.",
+  },
+  {
+    q: "Can I add booked consultations to my personal calendar?",
+    a: "Absolutely. Medrella generates an RFC 5545 compliant .ics calendar invite compatible with Google Calendar, Apple Calendar, and Microsoft Outlook, complete with hospital location, room number, and a 30-minute reminder alarm.",
+  },
+  {
+    q: "Can I reschedule my appointment if my plans change?",
+    a: "Yes. From your Patient Portal, simply click 'Reschedule Visit' on any confirmed appointment. You can choose a new date and open time slot. The old slot is released immediately for other patients.",
+  },
+];
+
 export default function HomePage() {
   const router = useRouter();
   const { currentUser, switchUser } = useRole();
@@ -49,6 +75,21 @@ export default function HomePage() {
   const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+
+  // Interactive Triage State
+  const [triageInput, setTriageInput] = useState("");
+  const [triageResult, setTriageResult] = useState<{
+    specialty: string;
+    doctor: Doctor | null;
+    reason: string;
+    urgency: string;
+  } | null>(null);
+
+  // Stepper State
+  const [activeStep, setActiveStep] = useState(0);
+
+  // FAQ Accordion State
+  const [expandedFaq, setExpandedFaq] = useState<number | null>(0);
 
   useEffect(() => {
     fetchDoctors();
@@ -65,6 +106,44 @@ export default function HomePage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleTriage = (symptomText: string) => {
+    const text = symptomText.toLowerCase();
+    let matchedSpec = "Cardiology";
+    let urgency = "Routine Consultation";
+    let reason = "Evaluation for cardiovascular health and rhythm monitoring.";
+
+    if (text.includes("rash") || text.includes("skin") || text.includes("itch") || text.includes("acne") || text.includes("eczema")) {
+      matchedSpec = "Dermatology";
+      urgency = "Standard Clinical Visit";
+      reason = "Clinical dermatology evaluation for dermatological health.";
+    } else if (text.includes("child") || text.includes("baby") || text.includes("vaccin") || text.includes("infant") || text.includes("pediatric")) {
+      matchedSpec = "Pediatrics";
+      urgency = "Pediatric Care";
+      reason = "Child health and developmental wellness examination.";
+    } else if (text.includes("knee") || text.includes("bone") || text.includes("joint") || text.includes("back pain") || text.includes("fracture") || text.includes("spine")) {
+      matchedSpec = "Orthopedics";
+      urgency = "Orthopedic Assessment";
+      reason = "Musculoskeletal examination and joint stability assessment.";
+    } else if (text.includes("headache") || text.includes("migraine") || text.includes("nerve") || text.includes("dizz") || text.includes("brain")) {
+      matchedSpec = "Neurology";
+      urgency = "Neurological Consultation";
+      reason = "Neurological screening for cranial and peripheral nerve symptoms.";
+    } else if (text.includes("chest") || text.includes("heart") || text.includes("bp") || text.includes("palpitation") || text.includes("breath")) {
+      matchedSpec = "Cardiology";
+      urgency = "Priority Outpatient";
+      reason = "Preventive cardiovascular screening and blood pressure evaluation.";
+    }
+
+    const matchedDoctor = doctors.find((d) => (d.specialty || d.specialization).toLowerCase() === matchedSpec.toLowerCase()) || doctors[0] || null;
+
+    setTriageResult({
+      specialty: matchedSpec,
+      doctor: matchedDoctor,
+      reason,
+      urgency,
+    });
   };
 
   const filteredDoctors = doctors.filter((doc) => {
@@ -84,562 +163,448 @@ export default function HomePage() {
     setIsModalOpen(true);
   };
 
-  const handleQuickSwitch = (userId: string, targetPath: string) => {
-    switchUser(userId);
-    router.push(targetPath);
-  };
+  const steps = [
+    {
+      title: "1. Discover Specialist",
+      desc: "Browse verified outpatient specialists with credentials, consultation fees, and hospital affiliations.",
+      badge: "Real-time Directory",
+    },
+    {
+      title: "2. Lock Time Slot",
+      desc: "Select available shifts with guaranteed conflict prevention and double-booking protection.",
+      badge: "Zero Collisions",
+    },
+    {
+      title: "3. Live OPD Queue",
+      desc: "Receive sequential token (#OPD-01) and follow 'Now Serving' status on the clinic station monitor.",
+      badge: "Transparent Queue",
+    },
+    {
+      title: "4. Digital Prescription",
+      desc: "Doctor inputs diagnosis and Rx medications, generating an official printable EHR clinical slip.",
+      badge: "Official EHR Slip",
+    },
+  ];
 
   return (
     <div className="space-y-20 pb-20">
       {/* Hero Section */}
-      <section className="relative overflow-hidden bg-gradient-to-b from-slate-950 via-slate-900 to-slate-900 text-white pt-16 pb-28 px-4 sm:px-6 lg:px-8 border-b border-slate-800">
-        {/* Subtle grid pattern background */}
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#1e293b_1px,transparent_1px),linear-gradient(to_bottom,#1e293b_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] opacity-30 pointer-events-none" />
-
-        <div className="relative max-w-7xl mx-auto">
+      <section className="relative overflow-hidden bg-gradient-to-b from-emerald-50/60 via-slate-50 to-white dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 border-b border-slate-200/80 dark:border-slate-800/80 py-16 sm:py-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
             
-            {/* Left Column: Headline, Value Proposition & Search */}
-            <div className="lg:col-span-7 space-y-7 text-center lg:text-left">
-              <div className="inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold tracking-wide">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                <span>Medrella Outpatient Platform • Schedula Engine</span>
+            {/* Left Column: Hero Content & Interactive Triage */}
+            <div className="lg:col-span-7 space-y-6">
+              <div className="inline-flex items-center space-x-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-400 text-xs font-bold tracking-wide">
+                <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                <span>Modern Clinical Outpatient Management</span>
               </div>
 
-              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-white leading-tight">
-                World-Class Clinical Care & Instant{" "}
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400">
-                  Doctor Appointments
+              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black text-slate-900 dark:text-white tracking-tight leading-[1.1]">
+                Smarter Outpatient <br />
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 via-teal-500 to-cyan-500">
+                  Appointments & Clinical OPD
                 </span>
               </h1>
 
-              <p className="text-base sm:text-lg text-slate-300 max-w-2xl font-normal leading-relaxed mx-auto lg:mx-0">
-                Eliminate clinic waiting lines. Book verified specialists with live slot synchronization,
-                prevent double-booking conflicts, and manage outpatient queues seamlessly.
+              <p className="text-base text-slate-600 dark:text-slate-300 max-w-xl leading-relaxed">
+                Experience guaranteed conflict-free scheduling, live sequential OPD queue tokens, digital doctor prescriptions, and one-click calendar sync.
               </p>
 
-              {/* Instant Search Bar */}
-              <div className="max-w-2xl bg-white/10 backdrop-blur-md p-2 rounded-2xl border border-white/15 shadow-2xl flex flex-col sm:flex-row gap-2 mx-auto lg:mx-0">
-                <div className="relative flex-1">
-                  <Search className="w-5 h-5 text-slate-400 absolute left-3.5 top-3.5" />
+              {/* Interactive Symptom Triage Widget */}
+              <div className="p-5 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-xl space-y-3.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <Zap className="w-4 h-4 text-emerald-600" />
+                    <span className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
+                      Interactive Symptom Triage Assistant
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-semibold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/50 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800">
+                    Instant Specialist Match
+                  </span>
+                </div>
+
+                <div className="relative">
                   <input
                     type="text"
-                    placeholder="Search doctor, specialty, or hospital..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-11 pr-4 py-3 bg-white text-slate-900 rounded-xl text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium shadow-inner"
+                    value={triageInput}
+                    onChange={(e) => {
+                      setTriageInput(e.target.value);
+                      if (e.target.value.length > 2) handleTriage(e.target.value);
+                    }}
+                    placeholder="Describe your symptoms (e.g. chest discomfort, eczema rash, child fever)..."
+                    className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-xs font-medium text-slate-900 dark:text-white placeholder:text-slate-400 focus:ring-2 focus:ring-emerald-500"
                   />
-                  {searchQuery && (
-                    <button
-                      onClick={() => setSearchQuery("")}
-                      className="absolute right-3 top-3 text-xs text-slate-400 hover:text-slate-600 font-bold"
-                    >
-                      Clear
-                    </button>
-                  )}
                 </div>
+
+                {/* Quick Symptom Chips */}
+                <div className="flex flex-wrap gap-1.5 items-center">
+                  <span className="text-[11px] text-slate-400 font-semibold mr-1">Quick Select:</span>
+                  {[
+                    "Chest Tightness",
+                    "Skin Rash",
+                    "Child Wellness",
+                    "Joint Pain",
+                    "Migraine",
+                  ].map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => {
+                        setTriageInput(s);
+                        handleTriage(s);
+                      }}
+                      className="text-[11px] px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-emerald-100 dark:hover:bg-emerald-950/60 text-slate-700 dark:text-slate-300 font-medium transition"
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Triage Recommendation Result */}
+                {triageResult && (
+                  <div className="p-3.5 bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950/30 dark:to-teal-950/30 rounded-2xl border border-emerald-200 dark:border-emerald-800/60 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 animate-in fade-in duration-200">
+                    <div className="space-y-0.5">
+                      <div className="flex items-center space-x-2">
+                        <span className="font-bold text-xs text-emerald-900 dark:text-emerald-200">
+                          Recommended Department: {triageResult.specialty}
+                        </span>
+                        <span className="text-[10px] font-bold bg-emerald-600 text-white px-2 py-0.2 rounded-md">
+                          {triageResult.urgency}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-600 dark:text-slate-400">{triageResult.reason}</p>
+                    </div>
+
+                    {triageResult.doctor && (
+                      <button
+                        onClick={() => handleBook(triageResult.doctor!)}
+                        className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl flex items-center space-x-1.5 shrink-0 shadow-sm transition"
+                      >
+                        <Stethoscope className="w-3.5 h-3.5" />
+                        <span>Book with {triageResult.doctor.name}</span>
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex flex-wrap items-center gap-3 pt-2">
                 <Link
                   href="/doctors"
-                  className="px-6 py-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-sm font-semibold flex items-center justify-center space-x-2 transition shadow-md shrink-0"
+                  className="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-xs font-bold flex items-center space-x-2 shadow-lg shadow-emerald-600/25 transition"
                 >
-                  <span>Find Specialists</span>
-                  <ArrowRight className="w-4 h-4" />
+                  <Search className="w-4 h-4" />
+                  <span>Browse Specialist Directory</span>
+                </Link>
+                <Link
+                  href="/patient"
+                  className="px-5 py-3 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 rounded-2xl text-xs font-semibold flex items-center space-x-2 transition border border-slate-200 dark:border-slate-700"
+                >
+                  <Calendar className="w-4 h-4 text-emerald-600" />
+                  <span>View My Appointments</span>
                 </Link>
               </div>
+            </div>
 
-              {/* Metric Highlights */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-2xl mx-auto lg:mx-0 pt-2">
-                <div className="p-3 rounded-xl bg-white/5 border border-white/10 backdrop-blur-sm text-left">
-                  <div className="text-2xl font-extrabold text-emerald-400">5+</div>
-                  <div className="text-[11px] text-slate-400 font-medium">Board Specialists</div>
+            {/* Right Column: Live OPD Outpatient Monitor Simulator */}
+            <div className="lg:col-span-5 space-y-4">
+              <div className="bg-slate-900 text-white p-6 rounded-3xl shadow-2xl border border-slate-800 space-y-5">
+                <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+                  <div className="flex items-center space-x-2">
+                    <Activity className="w-4 h-4 text-emerald-400" />
+                    <span className="font-bold text-xs uppercase tracking-wider text-slate-200">
+                      Live Hospital OPD Monitor
+                    </span>
+                  </div>
+                  <span className="flex items-center space-x-1.5 text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/20">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    <span>Real-Time Feed</span>
+                  </span>
                 </div>
-                <div className="p-3 rounded-xl bg-white/5 border border-white/10 backdrop-blur-sm text-left">
-                  <div className="text-2xl font-extrabold text-teal-400">100%</div>
-                  <div className="text-[11px] text-slate-400 font-medium">Live Slot Check</div>
+
+                {/* Active Station Card 1 */}
+                <div className="p-4 bg-slate-800/70 rounded-2xl border border-slate-700/80 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-emerald-400">Station 402 • Cardiology</span>
+                    <span className="text-[10px] font-bold bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded">
+                      Now Serving
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="text-sm font-extrabold text-white">Dr. Jane Smith</div>
+                      <div className="text-[11px] text-slate-400">Attending: John Doe</div>
+                    </div>
+                    <div className="text-lg font-mono font-black text-emerald-400 bg-slate-900 px-3 py-1 rounded-xl border border-slate-700">
+                      #OPD-01
+                    </div>
+                  </div>
                 </div>
-                <div className="p-3 rounded-xl bg-white/5 border border-white/10 backdrop-blur-sm text-left">
-                  <div className="text-2xl font-extrabold text-cyan-400">&lt; 1 min</div>
-                  <div className="text-[11px] text-slate-400 font-medium">Booking Speed</div>
+
+                {/* Active Station Card 2 */}
+                <div className="p-4 bg-slate-800/70 rounded-2xl border border-slate-700/80 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-cyan-400">Station 301 • Dermatology</span>
+                    <span className="text-[10px] font-bold bg-cyan-500/20 text-cyan-300 px-2 py-0.5 rounded">
+                      In Consultation
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="text-sm font-extrabold text-white">Dr. Robert Chen</div>
+                      <div className="text-[11px] text-slate-400">Attending: Michael Brown</div>
+                    </div>
+                    <div className="text-lg font-mono font-black text-cyan-400 bg-slate-900 px-3 py-1 rounded-xl border border-slate-700">
+                      #OPD-01
+                    </div>
+                  </div>
                 </div>
-                <div className="p-3 rounded-xl bg-white/5 border border-white/10 backdrop-blur-sm text-left">
-                  <div className="text-2xl font-extrabold text-emerald-400">0 min</div>
-                  <div className="text-[11px] text-slate-400 font-medium">Queue Delay</div>
+
+                {/* Clinic Guarantee Badges */}
+                <div className="grid grid-cols-2 gap-2 text-center text-[11px] text-slate-300 pt-1">
+                  <div className="p-2.5 bg-slate-800/40 rounded-xl border border-slate-800">
+                    <ShieldCheck className="w-4 h-4 text-emerald-400 mx-auto mb-1" />
+                    <span>Zero Double-Booking</span>
+                  </div>
+                  <div className="p-2.5 bg-slate-800/40 rounded-xl border border-slate-800">
+                    <FileText className="w-4 h-4 text-teal-400 mx-auto mb-1" />
+                    <span>Verified EHR Slips</span>
+                  </div>
                 </div>
               </div>
             </div>
-
-            {/* Right Column: Live Clinical Preview Widget */}
-            <div className="lg:col-span-5">
-              <div className="relative mx-auto max-w-md bg-slate-900/90 rounded-3xl border border-slate-700/80 shadow-2xl p-6 backdrop-blur-xl text-slate-100 space-y-5">
-                {/* Widget Header */}
-                <div className="flex items-center justify-between border-b border-slate-800 pb-4">
-                  <div className="flex items-center space-x-2.5">
-                    <div className="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
-                      <Stethoscope className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <h4 className="text-sm font-bold text-white">Live OPD Queue</h4>
-                      <p className="text-[11px] text-slate-400">St. Jude Medical Center</p>
-                    </div>
-                  </div>
-                  <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                    <span>Real-time Active</span>
-                  </span>
-                </div>
-
-                {/* Queue Item 1 - Active */}
-                <div className="p-3.5 bg-slate-800/80 rounded-2xl border border-slate-700/60 flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <div className="relative">
-                      <img
-                        src="https://images.unsplash.com/photo-1559839734-2b71ea197ec2?auto=format&fit=crop&q=80&w=120"
-                        alt="Dr. Jane Smith"
-                        className="w-11 h-11 rounded-xl object-cover border border-slate-600"
-                      />
-                      <span className="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-emerald-500 border-2 border-slate-900 rounded-full" />
-                    </div>
-                    <div>
-                      <div className="text-xs font-bold text-white">Dr. Jane Smith</div>
-                      <div className="text-[11px] text-emerald-400 font-medium">Cardiology • On Duty</div>
-                      <div className="text-[10px] text-slate-400 mt-0.5">Slot: 10:00 AM (In Progress)</div>
-                    </div>
-                  </div>
-                  <span className="px-2 py-1 text-[10px] font-semibold bg-emerald-950 text-emerald-300 border border-emerald-800 rounded-lg">
-                    Consulting
-                  </span>
-                </div>
-
-                {/* Queue Item 2 - Up Next */}
-                <div className="p-3.5 bg-slate-800/50 rounded-2xl border border-slate-700/40 flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-11 h-11 rounded-xl bg-slate-700 flex items-center justify-center text-slate-300 font-bold text-xs">
-                      JD
-                    </div>
-                    <div>
-                      <div className="text-xs font-bold text-white">John Doe (Patient)</div>
-                      <div className="text-[11px] text-slate-400">Cardiology Checkup</div>
-                      <div className="text-[10px] text-amber-400 mt-0.5">Next in Queue: 10:30 AM</div>
-                    </div>
-                  </div>
-                  <span className="px-2 py-1 text-[10px] font-semibold bg-amber-950 text-amber-300 border border-amber-800 rounded-lg">
-                    Confirmed
-                  </span>
-                </div>
-
-                {/* Queue Summary Footer */}
-                <div className="p-3 bg-slate-950/60 rounded-xl border border-slate-800/80 flex items-center justify-between text-xs">
-                  <div className="flex items-center space-x-2 text-slate-400">
-                    <Clock className="w-3.5 h-3.5 text-slate-400" />
-                    <span>Average Consultation: <strong>30 mins</strong></span>
-                  </div>
-                  <span className="text-emerald-400 font-semibold text-[11px]">8 Slots Open</span>
-                </div>
-
-                {/* Fast Action */}
-                <button
-                  onClick={() => {
-                    const doc = doctors[0];
-                    if (doc) handleBook(doc);
-                  }}
-                  className="w-full py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-xl text-xs font-semibold flex items-center justify-center space-x-2 transition shadow-lg shadow-emerald-900/30"
-                >
-                  <Calendar className="w-3.5 h-3.5" />
-                  <span>Book Immediate Slot with Dr. Jane Smith</span>
-                </button>
-              </div>
-            </div>
-
           </div>
         </div>
       </section>
 
-      {/* Specialty Filter Pills */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-12">
-        <div className="bg-white rounded-3xl shadow-xl border border-slate-200/90 p-5">
-          <div className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3 px-1">
-            Browse by Clinical Specialty
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2.5">
-            {SPECIALTIES.map((spec) => {
-              const Icon = spec.icon;
-              const isSelected = selectedSpecialty === spec.name;
-              return (
-                <button
-                  key={spec.name}
-                  onClick={() => setSelectedSpecialty(spec.name)}
-                  className={`flex flex-col items-center justify-center p-3.5 rounded-2xl text-xs font-semibold transition border ${
-                    isSelected
-                      ? "bg-slate-900 text-white border-slate-900 shadow-md scale-[1.02]"
-                      : "bg-slate-50 text-slate-700 border-slate-200/70 hover:bg-slate-100 hover:border-slate-300"
-                  }`}
-                >
-                  <Icon className={`w-5 h-5 mb-1.5 ${isSelected ? "text-emerald-400" : "text-emerald-600"}`} />
-                  <span className="text-center font-bold">{spec.name}</span>
-                  <span className={`text-[10px] mt-0.5 ${isSelected ? "text-slate-300" : "text-slate-500"}`}>
-                    {spec.tag}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      </section>
-
-      {/* "How It Works" 3-Step Journey */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center max-w-2xl mx-auto mb-12">
-          <div className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-bold border border-emerald-200 mb-3">
-            <CheckCircle2 className="w-3.5 h-3.5" />
-            <span>Frictionless Healthcare Journey</span>
-          </div>
-          <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">How Medrella Booking Works</h2>
-          <p className="text-sm text-slate-500 mt-2">
-            Engineered on Schedula architecture for instantaneous outpatient booking and verified OPD queues.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {/* Step 1 */}
-          <div className="bg-white rounded-3xl p-8 border border-slate-200 shadow-sm relative overflow-hidden group hover:shadow-md transition">
-            <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-extrabold text-lg mb-5 shadow-sm group-hover:scale-110 transition-transform">
-              1
-            </div>
-            <h3 className="font-bold text-lg text-slate-900 mb-2">Discover Verified Specialists</h3>
-            <p className="text-xs text-slate-600 leading-relaxed">
-              Browse board-certified doctors by department, consultation fee, hospital affiliation, and patient ratings.
-            </p>
-            <div className="mt-4 pt-4 border-t border-slate-100 text-[11px] text-emerald-700 font-semibold flex items-center space-x-1">
-              <span>5 Specialties Covered</span>
-              <ChevronRight className="w-3 h-3" />
-            </div>
-          </div>
-
-          {/* Step 2 */}
-          <div className="bg-white rounded-3xl p-8 border border-slate-200 shadow-sm relative overflow-hidden group hover:shadow-md transition">
-            <div className="w-12 h-12 rounded-2xl bg-teal-100 text-teal-700 flex items-center justify-center font-extrabold text-lg mb-5 shadow-sm group-hover:scale-110 transition-transform">
-              2
-            </div>
-            <h3 className="font-bold text-lg text-slate-900 mb-2">Select Live Conflict-Free Slot</h3>
-            <p className="text-xs text-slate-600 leading-relaxed">
-              Our dynamic slot engine checks the doctor's active shifts in real-time, instantly preventing double-booking conflicts.
-            </p>
-            <div className="mt-4 pt-4 border-t border-slate-100 text-[11px] text-teal-700 font-semibold flex items-center space-x-1">
-              <span>0% Double Booking Guarantee</span>
-              <ChevronRight className="w-3 h-3" />
-            </div>
-          </div>
-
-          {/* Step 3 */}
-          <div className="bg-white rounded-3xl p-8 border border-slate-200 shadow-sm relative overflow-hidden group hover:shadow-md transition">
-            <div className="w-12 h-12 rounded-2xl bg-cyan-100 text-cyan-700 flex items-center justify-center font-extrabold text-lg mb-5 shadow-sm group-hover:scale-110 transition-transform">
-              3
-            </div>
-            <h3 className="font-bold text-lg text-slate-900 mb-2">Join Digital OPD Queue</h3>
-            <p className="text-xs text-slate-600 leading-relaxed">
-              Get an instant confirmation ticket. The appointment updates the doctor's queue dashboard live for consultation.
-            </p>
-            <div className="mt-4 pt-4 border-t border-slate-100 text-[11px] text-cyan-700 font-semibold flex items-center space-x-1">
-              <span>Instant Confirmation</span>
-              <ChevronRight className="w-3 h-3" />
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Featured Doctors Section */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+      {/* Specialty Filter Section */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div>
-            <div className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-bold border border-emerald-200 mb-2">
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>Available Specialists</span>
-            </div>
-            <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900">Featured Verified Doctors</h2>
-            <p className="text-xs sm:text-sm text-slate-500 mt-1">
-              Showing specialists ready for outpatient consultation
+            <span className="text-xs font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+              Clinical Departments
+            </span>
+            <h2 className="text-3xl font-black text-slate-900 dark:text-white mt-1">
+              Browse Doctors by Specialty
+            </h2>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+              Select a specialty to instantly filter consulting doctors on this page.
             </p>
           </div>
+
           <Link
             href="/doctors"
-            className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-xl flex items-center space-x-1.5 transition self-start sm:self-auto shadow-sm"
+            className="text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:underline flex items-center space-x-1"
           >
-            <span>View Full Directory</span>
+            <span>View All Doctors ({doctors.length})</span>
             <ArrowRight className="w-3.5 h-3.5" />
           </Link>
         </div>
 
-        {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="h-72 bg-slate-100 rounded-3xl animate-pulse" />
-            ))}
-          </div>
-        ) : filteredDoctors.length === 0 ? (
-          <div className="bg-white rounded-3xl p-12 text-center border border-slate-200">
-            <p className="text-slate-500 text-sm font-medium">No doctors found matching your criteria.</p>
-            <button
-              onClick={() => {
-                setSearchQuery("");
-                setSelectedSpecialty("All Specialties");
-              }}
-              className="mt-3 text-xs text-emerald-700 font-bold hover:underline"
-            >
-              Reset search & filters
-            </button>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredDoctors.map((doc) => (
-              <div
-                key={doc.id}
-                className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm hover:shadow-lg transition-all flex flex-col justify-between group"
+        {/* Specialty Pills */}
+        <div className="flex flex-wrap gap-2.5">
+          {SPECIALTIES.map((spec) => {
+            const Icon = spec.icon;
+            const isSelected = selectedSpecialty === spec.name;
+            return (
+              <button
+                key={spec.name}
+                type="button"
+                onClick={() => setSelectedSpecialty(spec.name)}
+                className={`flex items-center space-x-2 px-4 py-2.5 rounded-2xl text-xs font-bold transition border ${
+                  isSelected
+                    ? "bg-emerald-600 text-white border-emerald-600 shadow-md shadow-emerald-600/20"
+                    : "bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:border-emerald-500 hover:bg-emerald-50/50"
+                }`}
               >
-                <div>
-                  <div className="flex items-start justify-between">
-                    <div className="relative">
-                      <img
-                        src={doc.avatar}
-                        alt={doc.name}
-                        className="w-16 h-16 rounded-2xl object-cover border-2 border-emerald-500/20 shadow-sm"
-                      />
-                      <span className="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-emerald-500 border-2 border-white rounded-full" />
-                    </div>
-                    <div className="flex items-center space-x-1 bg-amber-50 text-amber-700 border border-amber-200 px-2.5 py-1 rounded-full text-xs font-semibold">
-                      <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                      <span>{doc.rating}</span>
-                      <span className="text-slate-400 font-normal">({doc.reviewCount || doc.reviewsCount})</span>
-                    </div>
-                  </div>
+                <Icon className={`w-4 h-4 ${isSelected ? "text-white" : "text-emerald-600"}`} />
+                <span>{spec.name}</span>
+              </button>
+            );
+          })}
+        </div>
 
-                  <div className="mt-4">
-                    <h3 className="font-bold text-lg text-slate-900 group-hover:text-emerald-700 transition">
-                      {doc.name}
-                    </h3>
-                    <div className="flex items-center space-x-2 mt-1">
-                      <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
+        {/* Filtered Doctor Cards Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredDoctors.map((doc) => (
+            <div
+              key={doc.id}
+              className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-xl transition-all space-y-4 flex flex-col justify-between"
+            >
+              <div className="space-y-4">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center space-x-3.5">
+                    <img
+                      src={doc.avatar}
+                      alt={doc.name}
+                      className="w-14 h-14 rounded-2xl object-cover border-2 border-white dark:border-slate-700 shadow-sm"
+                    />
+                    <div>
+                      <h3 className="font-bold text-slate-900 dark:text-white text-base leading-tight">
+                        {doc.name}
+                      </h3>
+                      <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 mt-0.5">
                         {doc.specialty || doc.specialization}
-                      </span>
-                      <span className="text-[11px] text-slate-500 font-medium">
-                        {doc.experience || `${doc.experienceYears} yrs`} exp
-                      </span>
+                      </p>
+                      <div className="flex items-center space-x-1 text-amber-500 text-xs font-bold mt-1">
+                        <Star className="w-3.5 h-3.5 fill-amber-400" />
+                        <span>{doc.rating}</span>
+                        <span className="text-slate-400 font-normal">({doc.reviewCount || doc.reviewsCount} reviews)</span>
+                      </div>
                     </div>
-
-                    <div className="flex items-center space-x-1.5 text-xs text-slate-500 mt-2.5">
-                      <Building2 className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                      <span className="truncate">{doc.hospital}</span>
-                    </div>
-
-                    <p className="text-xs text-slate-600 line-clamp-2 mt-3 leading-relaxed">
-                      {doc.bio || doc.about}
-                    </p>
                   </div>
+                  <span className="text-sm font-extrabold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2.5 py-1 rounded-xl border border-emerald-200 dark:border-emerald-800">
+                    ${doc.fee || doc.consultationFee}
+                  </span>
                 </div>
 
-                <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between">
-                  <div>
-                    <span className="text-[11px] text-slate-400 block font-medium">Session Fee</span>
-                    <span className="text-lg font-extrabold text-slate-900">${doc.fee || doc.consultationFee}</span>
-                  </div>
-                  <button
-                    onClick={() => handleBook(doc)}
-                    className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold transition flex items-center space-x-1.5 shadow-sm"
-                  >
-                    <Calendar className="w-3.5 h-3.5" />
-                    <span>Book Appointment</span>
-                  </button>
+                <p className="text-xs text-slate-600 dark:text-slate-400 line-clamp-2">
+                  {doc.bio || doc.about}
+                </p>
+
+                <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs text-slate-500">
+                  <span className="flex items-center space-x-1">
+                    <Building2 className="w-3.5 h-3.5 text-slate-400" />
+                    <span>{doc.hospital}</span>
+                  </span>
+                  <span>{doc.experience || `${doc.experienceYears} yrs`} exp</span>
                 </div>
               </div>
-            ))}
-          </div>
-        )}
+
+              <button
+                onClick={() => handleBook(doc)}
+                className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center justify-center space-x-2 transition shadow-sm"
+              >
+                <Calendar className="w-3.5 h-3.5" />
+                <span>Book Appointment</span>
+              </button>
+            </div>
+          ))}
+        </div>
       </section>
 
-      {/* Dual-Role Interactive Showcase (Replaced Loom Banner with Instant Role Switching) */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 rounded-3xl p-8 sm:p-12 text-white border border-slate-800 shadow-2xl relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
-
-          <div className="relative z-10 max-w-4xl space-y-6">
-            <div className="inline-flex items-center space-x-2 text-xs font-semibold text-emerald-400 bg-emerald-500/10 px-3.5 py-1.5 rounded-full border border-emerald-500/20">
-              <UserCheck className="w-4 h-4" />
-              <span>Real-Time Cross-Dashboard Synchronization</span>
-            </div>
-
-            <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white leading-tight">
-              Test Real-Time Clinical Synchronization Between Patient & Doctor
+      {/* Interactive 4-Step Patient Journey */}
+      <section className="bg-slate-50 dark:bg-slate-900/60 py-16 border-y border-slate-200 dark:border-slate-800">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
+          <div className="text-center max-w-2xl mx-auto space-y-2">
+            <span className="text-xs font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+              Interactive Workflow
+            </span>
+            <h2 className="text-3xl font-black text-slate-900 dark:text-white">
+              The Medrella Outpatient Experience
             </h2>
-
-            <p className="text-sm sm:text-base text-slate-300 leading-relaxed font-normal">
-              Experience the dual-sided outpatient workflow in action. Book an appointment as a patient,
-              switch roles immediately to the physician, and watch the consultation ticket arrive in the queue dashboard!
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Click through the 4 stages to preview how Medrella coordinates outpatient encounters.
             </p>
+          </div>
 
-            {/* Side-by-Side Dual-Role Action Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-3">
-              {/* Patient Card */}
-              <div className="p-5 bg-slate-800/80 rounded-2xl border border-slate-700/70 space-y-3">
-                <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold">
-                    JD
-                  </div>
-                  <div>
-                    <h4 className="text-sm font-bold text-white">John Doe (Patient)</h4>
-                    <p className="text-xs text-slate-400">Self-Service Patient Portal</p>
-                  </div>
-                </div>
-                <p className="text-xs text-slate-300">
-                  Book slots with specialists, review consultation dates, and self-manage cancellations with instant status updates.
-                </p>
-                <button
-                  onClick={() => handleQuickSwitch("user_pat_1", "/patient")}
-                  className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition flex items-center justify-center space-x-2 shadow"
-                >
-                  <span>Launch as Patient (John Doe)</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </button>
-              </div>
+          {/* Stepper Tabs */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {steps.map((st, i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={() => setActiveStep(i)}
+                className={`p-4 rounded-2xl text-left border transition-all ${
+                  activeStep === i
+                    ? "bg-white dark:bg-slate-800 border-emerald-500 shadow-md shadow-emerald-500/10 ring-2 ring-emerald-500/20"
+                    : "bg-white/60 dark:bg-slate-900/40 border-slate-200 dark:border-slate-800 hover:bg-white dark:hover:bg-slate-800"
+                }`}
+              >
+                <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider block mb-1">
+                  {st.badge}
+                </span>
+                <div className="font-bold text-xs text-slate-900 dark:text-white">{st.title}</div>
+              </button>
+            ))}
+          </div>
 
-              {/* Doctor Card */}
-              <div className="p-5 bg-slate-800/80 rounded-2xl border border-slate-700/70 space-y-3">
-                <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 rounded-xl bg-teal-500/20 text-teal-400 flex items-center justify-center font-bold">
-                    JS
-                  </div>
-                  <div>
-                    <h4 className="text-sm font-bold text-white">Dr. Jane Smith (Cardiologist)</h4>
-                    <p className="text-xs text-slate-400">Outpatient EMR & Queue</p>
-                  </div>
-                </div>
-                <p className="text-xs text-slate-300">
-                  Inspect incoming OPD queues, mark visits confirmed/completed, and manage weekly clinical shifts and slot duration.
-                </p>
-                <button
-                  onClick={() => handleQuickSwitch("user_doc_1", "/doctor")}
-                  className="w-full py-2.5 bg-slate-700 hover:bg-slate-600 text-white rounded-xl text-xs font-bold transition flex items-center justify-center space-x-2"
-                >
-                  <span>Launch as Doctor (Dr. Jane Smith)</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </button>
-              </div>
+          {/* Active Step Preview Card */}
+          <div className="p-8 bg-white dark:bg-slate-800 rounded-3xl border border-slate-200 dark:border-slate-700 shadow-xl flex flex-col md:flex-row items-center justify-between gap-6 animate-in fade-in duration-200">
+            <div className="space-y-2 max-w-xl">
+              <span className="text-xs font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                Phase {activeStep + 1}
+              </span>
+              <h3 className="text-2xl font-black text-slate-900 dark:text-white">
+                {steps[activeStep].title}
+              </h3>
+              <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                {steps[activeStep].desc}
+              </p>
             </div>
 
+            <div className="flex items-center space-x-3 shrink-0">
+              <Link
+                href="/doctors"
+                className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition shadow-sm"
+              >
+                Test in Live Demo
+              </Link>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* Schedula Architectural Strengths */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center max-w-2xl mx-auto mb-12">
-          <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">Core Scheduling Architecture</h2>
-          <p className="text-sm text-slate-500 mt-2">
-            Built using the proven Schedula hospital scheduling schema for enterprise clinic reliability.
+      {/* Interactive FAQ Accordion */}
+      <section className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
+        <div className="text-center space-y-2">
+          <HelpCircle className="w-8 h-8 text-emerald-600 mx-auto" />
+          <h2 className="text-3xl font-black text-slate-900 dark:text-white">
+            Frequently Asked Questions
+          </h2>
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            Everything you need to know about scheduling, tokens, and digital prescriptions.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-white rounded-3xl p-7 border border-slate-200 shadow-sm space-y-3">
-            <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center shadow-sm">
-              <Clock className="w-6 h-6" />
-            </div>
-            <h3 className="font-bold text-lg text-slate-900">Dynamic Slot Engine</h3>
-            <p className="text-xs text-slate-600 leading-relaxed">
-              Calculates slot availability dynamically from doctor shifts, consultation durations, and booked appointments.
-            </p>
-          </div>
-
-          <div className="bg-white rounded-3xl p-7 border border-slate-200 shadow-sm space-y-3">
-            <div className="w-12 h-12 rounded-2xl bg-teal-100 text-teal-700 flex items-center justify-center shadow-sm">
-              <ShieldCheck className="w-6 h-6" />
-            </div>
-            <h3 className="font-bold text-lg text-slate-900">Resilient JSON Persistence</h3>
-            <p className="text-xs text-slate-600 leading-relaxed">
-              State transitions (SCHEDULED, CONFIRMED, COMPLETED, CANCELLED) persist reliably across restarts with zero data corruption.
-            </p>
-          </div>
-
-          <div className="bg-white rounded-3xl p-7 border border-slate-200 shadow-sm space-y-3">
-            <div className="w-12 h-12 rounded-2xl bg-cyan-100 text-cyan-700 flex items-center justify-center shadow-sm">
-              <Activity className="w-6 h-6" />
-            </div>
-            <h3 className="font-bold text-lg text-slate-900">Physician Queue Triage</h3>
-            <p className="text-xs text-slate-600 leading-relaxed">
-              Provides OPD physicians with instant status toggle buttons, consultation metrics, and patient clinical history.
-            </p>
-          </div>
+        <div className="space-y-3">
+          {FAQS.map((faq, idx) => {
+            const isOpen = expandedFaq === idx;
+            return (
+              <div
+                key={idx}
+                className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-xs"
+              >
+                <button
+                  type="button"
+                  onClick={() => setExpandedFaq(isOpen ? null : idx)}
+                  className="w-full p-5 text-left flex items-center justify-between gap-4 font-bold text-xs text-slate-900 dark:text-white hover:bg-slate-50 dark:hover:bg-slate-800/50 transition"
+                >
+                  <span>{faq.q}</span>
+                  {isOpen ? (
+                    <ChevronUp className="w-4 h-4 text-emerald-600 shrink-0" />
+                  ) : (
+                    <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" />
+                  )}
+                </button>
+                {isOpen && (
+                  <div className="px-5 pb-5 text-xs text-slate-600 dark:text-slate-400 leading-relaxed border-t border-slate-100 dark:border-slate-800/60 pt-3">
+                    {faq.a}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       </section>
 
-      {/* Enterprise Clinic Footer */}
-      <footer className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 border-t border-slate-200">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8 pb-8">
-          <div className="md:col-span-2 space-y-3">
-            <div className="flex items-center space-x-2.5">
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-emerald-500 via-teal-500 to-cyan-500 flex items-center justify-center shadow-sm">
-                <HeartPulse className="w-4 h-4 text-white" />
-              </div>
-              <span className="font-extrabold text-lg text-slate-900 tracking-tight">
-                Medrella<span className="text-emerald-500">.</span>
-              </span>
-            </div>
-            <p className="text-xs text-slate-500 max-w-sm leading-relaxed">
-              Next-generation outpatient healthcare appointment booking and clinical schedule management platform.
-            </p>
-          </div>
-
-          <div>
-            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900 mb-3">Quick Navigation</h4>
-            <ul className="space-y-2 text-xs text-slate-600">
-              <li>
-                <Link href="/doctors" className="hover:text-emerald-700 transition">
-                  Find Specialists
-                </Link>
-              </li>
-              <li>
-                <Link href="/patient" className="hover:text-emerald-700 transition">
-                  Patient Appointments Portal
-                </Link>
-              </li>
-              <li>
-                <Link href="/doctor" className="hover:text-emerald-700 transition">
-                  Doctor Queue Dashboard
-                </Link>
-              </li>
-            </ul>
-          </div>
-
-          <div>
-            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900 mb-3">Clinical Hours</h4>
-            <p className="text-xs text-slate-600 leading-relaxed">
-              Outpatient OPD: Mon - Fri (09:00 - 17:00)<br />
-              Saturday: 09:00 - 14:00<br />
-              Sunday: Emergency Ward Only
-            </p>
-          </div>
-        </div>
-
-        {/* Medical Emergency Disclaimer */}
-        <div className="p-4 bg-amber-50 rounded-2xl border border-amber-200 flex items-center space-x-3 text-xs text-amber-900 mb-6">
-          <ShieldAlert className="w-4 h-4 text-amber-600 shrink-0" />
-          <span>
-            <strong>Medical Notice:</strong> If you are experiencing a life-threatening medical emergency, please call your local emergency hotline (e.g. 911 / 112) or proceed to the nearest emergency room immediately.
-          </span>
-        </div>
-
-        <div className="text-center text-xs text-slate-400 pb-4">
-          &copy; 2026 Medrella Clinical Booking Platform. Built on Schedula Architecture.
-        </div>
-      </footer>
-
       {/* Booking Modal */}
-      <BookingModal
-        doctor={selectedDoctor}
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onSuccess={() => {
-          fetchDoctors();
-        }}
-      />
+      {selectedDoctor && (
+        <BookingModal
+          doctor={selectedDoctor}
+          isOpen={isModalOpen}
+          onClose={() => {
+            setIsModalOpen(false);
+            setSelectedDoctor(null);
+          }}
+          onSuccess={() => {
+            fetchDoctors();
+          }}
+        />
+      )}
     </div>
   );
 }
