@@ -277,6 +277,18 @@ async function main() {
     }
   });
 
+  // 14. Authentication Portal UI
+  await runTest('GET /login serves production authentication portal (HTTP 200)', async () => {
+    const res = await fetch(`${BASE_URL}/login`);
+    if (res.status !== 200) throw new Error(`Expected HTTP 200, got ${res.status}`);
+  });
+
+  // 15. Patient Registration Portal UI
+  await runTest('GET /signup serves patient registration portal (HTTP 200)', async () => {
+    const res = await fetch(`${BASE_URL}/signup`);
+    if (res.status !== 200) throw new Error(`Expected HTTP 200, got ${res.status}`);
+  });
+
   console.log('\x1b[36m%s\x1b[0m', '-------------------------------------------------');
   const resultColor = passedTests === totalTests ? '\x1b[32m' : '\x1b[33m';
   console.log(`${resultColor}%s\x1b[0m`, `Test Results: ${passedTests} / ${totalTests} Tests Passed`);

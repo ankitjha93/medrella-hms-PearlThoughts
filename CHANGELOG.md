@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.7.0] - 2026-10-29
+### Added
+- **Production-Ready Supabase Authentication (TASK-007)**:
+  - Installed and configured `@supabase/supabase-js` and `@supabase/ssr` with Next.js 16 App Router cookie handling.
+  - Browser client (`src/lib/supabase/client.ts`) with dynamic `isSupabaseConfigured()` checking.
+  - Server client (`src/lib/supabase/server.ts`) with asynchronous `cookies()` store.
+  - Middleware token refresher (`src/lib/supabase/middleware.ts`).
+  - Next.js Edge Middleware (`src/middleware.ts`) enforcing Role-Based Access Control on `/admin`, `/doctor`, and `/patient`.
+- **Clinical Authentication Portals**:
+  - Dedicated `/login` portal with email/password authentication and 1-click **Demo Quick Login** for Patient, Doctor, and Admin personas.
+  - Dedicated `/signup` portal for patient onboarding with name, phone, email, and password validation.
+  - `/auth/callback` route handler exchanging OAuth/verification codes for active sessions.
+- **Supabase Database Migration & RBAC**:
+  - Added `supabase/schema.sql` defining `profiles` table, Row Level Security (RLS) policies, and `handle_new_user()` trigger for automated user provisioning.
+- **Navbar Session Controls**:
+  - Updated Navbar dropdown with active session display, user role badge, direct links to clinical portals, and "Sign Out" button.
+- **Automated Integration Test Matrix Expansion**:
+  - Added tests for `/login` and `/signup` routes in `tests/run-tests.mjs`, expanding matrix to 15/15 passing tests.
+
+---
+
 ## [0.6.0] - 2026-10-29
 ### Added
 - **Danphe EMR Architecture Alignment (TASK-006)**: Integrated enterprise Hospital Management Information System (HMIS) capabilities inspired by `opensource-emr/hospital-management-emr`.
