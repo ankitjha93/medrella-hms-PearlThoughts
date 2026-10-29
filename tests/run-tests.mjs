@@ -289,6 +289,24 @@ async function main() {
     if (res.status !== 200) throw new Error(`Expected HTTP 200, got ${res.status}`);
   });
 
+  // 16. Password Recovery Portal UI
+  await runTest('GET /forgot-password serves password recovery dispatch portal (HTTP 200)', async () => {
+    const res = await fetch(`${BASE_URL}/forgot-password`);
+    if (res.status !== 200) throw new Error(`Expected HTTP 200, got ${res.status}`);
+  });
+
+  // 17. Password Reset Portal UI
+  await runTest('GET /reset-password serves password reset form with entropy scoring (HTTP 200)', async () => {
+    const res = await fetch(`${BASE_URL}/reset-password`);
+    if (res.status !== 200) throw new Error(`Expected HTTP 200, got ${res.status}`);
+  });
+
+  // 18. User Profile & Security Settings Portal UI
+  await runTest('GET /profile serves clinical profile and security management portal (HTTP 200)', async () => {
+    const res = await fetch(`${BASE_URL}/profile`);
+    if (res.status !== 200) throw new Error(`Expected HTTP 200, got ${res.status}`);
+  });
+
   console.log('\x1b[36m%s\x1b[0m', '-------------------------------------------------');
   const resultColor = passedTests === totalTests ? '\x1b[32m' : '\x1b[33m';
   console.log(`${resultColor}%s\x1b[0m`, `Test Results: ${passedTests} / ${totalTests} Tests Passed`);

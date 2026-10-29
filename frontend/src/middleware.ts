@@ -15,7 +15,7 @@ export async function middleware(request: NextRequest) {
     }
 
     // 2. Protected Routes
-    const isProtected = path.startsWith('/admin') || path.startsWith('/doctor') || path.startsWith('/patient');
+    const isProtected = path.startsWith('/admin') || path.startsWith('/doctor') || path.startsWith('/patient') || path.startsWith('/profile');
 
     if (isProtected && !user) {
       const loginUrl = new URL('/login', request.url);
@@ -41,6 +41,8 @@ export const config = {
     '/admin/:path*',
     '/doctor/:path*',
     '/patient/:path*',
+    '/profile/:path*',
+    '/profile',
     '/login',
     '/signup',
   ],

@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.8.0] - 2026-10-29
+### Added
+- **Enterprise Authentication Enhancements (TASK-008)**:
+  - **Passwordless Magic Link & OTP**: Added 1-click passwordless login on `/login` with real-time email dispatch confirmation and error feedback.
+  - **Complete Password Recovery Suite**:
+    - Created `src/app/forgot-password/page.tsx` for secure password recovery initiation.
+    - Created `src/app/reset-password/page.tsx` with live cryptographic token consumption and interactive password entropy scoring.
+  - **Multi-Role Specialist & Patient Registration**:
+    - Enhanced `/signup` with role selection tabs (Patient vs Doctor / Specialist).
+    - Added specialty selector (Cardiology, Dermatology, Pediatrics, Orthopedics, Neurology), hospital affiliation, and medical license ID fields for doctor registrations.
+  - **Interactive Password Strength Meter**: Real-time visual progress bar and criteria checklist (length, digits, uppercase, special symbols) implemented across registration, password reset, and profile management forms.
+  - **OAuth 2.0 Social Sign-In**: Integrated "Continue with Google" and "Continue with GitHub" buttons powered by Supabase Auth with fallback.
+  - **User Profile & Security Management (`/profile`)**:
+    - Created dedicated `/profile` portal with two tabs: Personal & Clinical Information and Security & Workstation Access.
+    - Display name editing, emergency contact, blood group / clinical department, and customizable avatar with presets.
+    - Password change form with entropy validation.
+    - Active workstation session inspection (current browser, tablet session, and "Sign Out of All Workstations" control).
+  - **Route Protection & Navigation**:
+    - Updated `src/middleware.ts` to guard `/profile` and allow public access to `/forgot-password` and `/reset-password`.
+    - Added "My Profile & Security" link to `Navbar.tsx` user dropdown.
+  - **Test Matrix & Production Validation**:
+    - Added tests for `/forgot-password`, `/reset-password`, and `/profile` in `tests/run-tests.mjs` (18/18 PASS).
+    - Production build compiles all 28 routes with 0 TypeScript and 0 prerender errors.
+
+---
+
 ## [0.7.0] - 2026-10-29
 ### Added
 - **Production-Ready Supabase Authentication (TASK-007)**:

@@ -17,8 +17,10 @@ gantt
     Phase 4: Appointment Rescheduling   :done, 2026-10-28, 2026-10-28
     Phase 5: Doctor Leave & Blackouts   :done, 2026-10-28, 2026-10-28
     Phase 6: AI Clinical Symptom Triage :done, 2026-10-28, 2026-10-28
-    section Active
-    Phase 7: Doctor Profiles & Reviews  :active, 2026-10-29, 2026-10-31
+    Phase 7: Doctor Profiles & Reviews  :done, 2026-10-29, 2026-10-29
+    Phase 8: Enterprise EMR Modules     :done, 2026-10-29, 2026-10-29
+    Phase 9: Supabase Auth & RBAC       :done, 2026-10-29, 2026-10-29
+    Phase 10: Auth Enhancements Suite   :done, 2026-10-29, 2026-10-29
 ```
 
 ---
