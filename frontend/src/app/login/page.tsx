@@ -49,7 +49,8 @@ function LoginForm() {
       if (signInError) {
         setError(signInError);
       } else {
-        router.push(redirectPath);
+        const target = redirectPath && redirectPath !== "/login" ? redirectPath : "/";
+        window.location.href = target;
       }
     } catch (err: any) {
       setError(err.message || "Failed to sign in. Please verify your credentials.");
@@ -93,9 +94,10 @@ function LoginForm() {
     }
   };
 
-  const handleDemoLogin = (userId: string, targetPath: string) => {
+  const handleDemoLogin = (userId: string, targetPath: string = "/") => {
     switchUser(userId);
-    router.push(targetPath);
+    const target = redirectPath && redirectPath !== "/login" ? redirectPath : targetPath;
+    window.location.href = target;
   };
 
   return (
@@ -308,7 +310,7 @@ function LoginForm() {
 
           <button
             type="button"
-            onClick={() => handleDemoLogin("user_pat_1", "/patient")}
+            onClick={() => handleDemoLogin("user_pat_1", "/")}
             className="w-full p-3 rounded-2xl border border-slate-200 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-500 bg-slate-50 dark:bg-slate-800/60 hover:bg-emerald-50/50 dark:hover:bg-emerald-950/20 transition text-left flex items-center justify-between cursor-pointer group"
           >
             <div className="flex items-center gap-3">
@@ -327,7 +329,7 @@ function LoginForm() {
 
           <button
             type="button"
-            onClick={() => handleDemoLogin("user_doc_1", "/doctor")}
+            onClick={() => handleDemoLogin("user_doc_1", "/")}
             className="w-full p-3 rounded-2xl border border-slate-200 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-500 bg-slate-50 dark:bg-slate-800/60 hover:bg-emerald-50/50 dark:hover:bg-emerald-950/20 transition text-left flex items-center justify-between cursor-pointer group"
           >
             <div className="flex items-center gap-3">
@@ -346,7 +348,7 @@ function LoginForm() {
 
           <button
             type="button"
-            onClick={() => handleDemoLogin("user_admin_1", "/admin")}
+            onClick={() => handleDemoLogin("user_admin_1", "/")}
             className="w-full p-3 rounded-2xl border border-slate-200 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-500 bg-slate-50 dark:bg-slate-800/60 hover:bg-emerald-50/50 dark:hover:bg-emerald-950/20 transition text-left flex items-center justify-between cursor-pointer group"
           >
             <div className="flex items-center gap-3">

@@ -36,7 +36,7 @@ interface BookingModalProps {
 
 export function BookingModal({ doctor, isOpen, onClose, onSuccess }: BookingModalProps) {
   const { currentUser } = useRole();
-  
+
   // Step: 1 (Slot Selection), 2 (Intake / Symptoms), 3 (Payment Checkout)
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [date, setDate] = useState<string>("");
@@ -292,7 +292,7 @@ export function BookingModal({ doctor, isOpen, onClose, onSuccess }: BookingModa
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
       <div className="relative w-full max-w-xl bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
-        
+
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 bg-slate-900 text-white">
           <div className="flex items-center space-x-3">
@@ -315,9 +315,8 @@ export function BookingModal({ doctor, isOpen, onClose, onSuccess }: BookingModa
         {/* Step Indicator */}
         <div className="bg-slate-100 dark:bg-slate-800/60 px-6 py-2.5 flex items-center justify-between text-xs border-b border-slate-200 dark:border-slate-800">
           <div className="flex items-center space-x-2">
-            <span className={`w-5 h-5 rounded-full flex items-center justify-center font-bold text-[10px] ${
-              step >= 1 ? "bg-emerald-600 text-white" : "bg-slate-300 dark:bg-slate-700 text-slate-700 dark:text-slate-300"
-            }`}>
+            <span className={`w-5 h-5 rounded-full flex items-center justify-center font-bold text-[10px] ${step >= 1 ? "bg-emerald-600 text-white" : "bg-slate-300 dark:bg-slate-700 text-slate-700 dark:text-slate-300"
+              }`}>
               1
             </span>
             <span className={step === 1 ? "font-bold text-slate-900 dark:text-white" : "text-slate-500"}>Schedule</span>
@@ -326,9 +325,8 @@ export function BookingModal({ doctor, isOpen, onClose, onSuccess }: BookingModa
           <div className="w-6 h-0.5 bg-slate-300 dark:bg-slate-700" />
 
           <div className="flex items-center space-x-2">
-            <span className={`w-5 h-5 rounded-full flex items-center justify-center font-bold text-[10px] ${
-              step >= 2 ? "bg-emerald-600 text-white" : "bg-slate-300 dark:bg-slate-700 text-slate-700 dark:text-slate-300"
-            }`}>
+            <span className={`w-5 h-5 rounded-full flex items-center justify-center font-bold text-[10px] ${step >= 2 ? "bg-emerald-600 text-white" : "bg-slate-300 dark:bg-slate-700 text-slate-700 dark:text-slate-300"
+              }`}>
               2
             </span>
             <span className={step === 2 ? "font-bold text-slate-900 dark:text-white" : "text-slate-500"}>Intake</span>
@@ -337,9 +335,8 @@ export function BookingModal({ doctor, isOpen, onClose, onSuccess }: BookingModa
           <div className="w-6 h-0.5 bg-slate-300 dark:bg-slate-700" />
 
           <div className="flex items-center space-x-2">
-            <span className={`w-5 h-5 rounded-full flex items-center justify-center font-bold text-[10px] ${
-              step === 3 || successAppt ? "bg-emerald-600 text-white" : "bg-slate-300 dark:bg-slate-700 text-slate-700 dark:text-slate-300"
-            }`}>
+            <span className={`w-5 h-5 rounded-full flex items-center justify-center font-bold text-[10px] ${step === 3 || successAppt ? "bg-emerald-600 text-white" : "bg-slate-300 dark:bg-slate-700 text-slate-700 dark:text-slate-300"
+              }`}>
               3
             </span>
             <span className={step === 3 || successAppt ? "font-bold text-slate-900 dark:text-white" : "text-slate-500"}>Payment</span>
@@ -487,13 +484,12 @@ export function BookingModal({ doctor, isOpen, onClose, onSuccess }: BookingModa
                                   key={s.time}
                                   disabled={!isAvail}
                                   onClick={() => setSelectedSlot(s.time)}
-                                  className={`p-2 rounded-xl text-xs font-semibold text-center transition border cursor-pointer ${
-                                    isSelected
-                                      ? "bg-emerald-600 text-white border-emerald-600 shadow-sm"
-                                      : isAvail
+                                  className={`p-2 rounded-xl text-xs font-semibold text-center transition border cursor-pointer ${isSelected
+                                    ? "bg-emerald-600 text-white border-emerald-600 shadow-sm"
+                                    : isAvail
                                       ? "bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 border-slate-200 dark:border-slate-700 hover:border-emerald-500 hover:bg-emerald-50/50"
                                       : "bg-slate-100 dark:bg-slate-800/40 text-slate-400 dark:text-slate-600 border-slate-100 dark:border-slate-800 cursor-not-allowed line-through"
-                                  }`}
+                                    }`}
                                 >
                                   {s.time}
                                 </button>
@@ -520,13 +516,12 @@ export function BookingModal({ doctor, isOpen, onClose, onSuccess }: BookingModa
                                   key={s.time}
                                   disabled={!isAvail}
                                   onClick={() => setSelectedSlot(s.time)}
-                                  className={`p-2 rounded-xl text-xs font-semibold text-center transition border cursor-pointer ${
-                                    isSelected
-                                      ? "bg-emerald-600 text-white border-emerald-600 shadow-sm"
-                                      : isAvail
+                                  className={`p-2 rounded-xl text-xs font-semibold text-center transition border cursor-pointer ${isSelected
+                                    ? "bg-emerald-600 text-white border-emerald-600 shadow-sm"
+                                    : isAvail
                                       ? "bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 border-slate-200 dark:border-slate-700 hover:border-emerald-500 hover:bg-emerald-50/50"
                                       : "bg-slate-100 dark:bg-slate-800/40 text-slate-400 dark:text-slate-600 border-slate-100 dark:border-slate-800 cursor-not-allowed line-through"
-                                  }`}
+                                    }`}
                                 >
                                   {s.time}
                                 </button>
@@ -649,11 +644,10 @@ export function BookingModal({ doctor, isOpen, onClose, onSuccess }: BookingModa
                     <button
                       type="button"
                       onClick={() => setSelectedProvider("RAZORPAY")}
-                      className={`p-3 rounded-xl border text-center transition cursor-pointer flex flex-col items-center space-y-1 ${
-                        selectedProvider === "RAZORPAY"
-                          ? "border-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 font-bold"
-                          : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400"
-                      }`}
+                      className={`p-3 rounded-xl border text-center transition cursor-pointer flex flex-col items-center space-y-1 ${selectedProvider === "RAZORPAY"
+                        ? "border-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 font-bold"
+                        : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400"
+                        }`}
                     >
                       <CreditCard className="w-5 h-5 text-emerald-600" />
                       <span className="text-xs">Razorpay</span>
@@ -662,11 +656,10 @@ export function BookingModal({ doctor, isOpen, onClose, onSuccess }: BookingModa
                     <button
                       type="button"
                       onClick={() => setSelectedProvider("STRIPE")}
-                      className={`p-3 rounded-xl border text-center transition cursor-pointer flex flex-col items-center space-y-1 ${
-                        selectedProvider === "STRIPE"
-                          ? "border-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 font-bold"
-                          : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400"
-                      }`}
+                      className={`p-3 rounded-xl border text-center transition cursor-pointer flex flex-col items-center space-y-1 ${selectedProvider === "STRIPE"
+                        ? "border-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 font-bold"
+                        : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400"
+                        }`}
                     >
                       <ShieldCheck className="w-5 h-5 text-blue-600" />
                       <span className="text-xs">Stripe</span>
@@ -675,11 +668,10 @@ export function BookingModal({ doctor, isOpen, onClose, onSuccess }: BookingModa
                     <button
                       type="button"
                       onClick={() => setSelectedProvider("SIMULATED")}
-                      className={`p-3 rounded-xl border text-center transition cursor-pointer flex flex-col items-center space-y-1 ${
-                        selectedProvider === "SIMULATED"
-                          ? "border-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 font-bold"
-                          : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400"
-                      }`}
+                      className={`p-3 rounded-xl border text-center transition cursor-pointer flex flex-col items-center space-y-1 ${selectedProvider === "SIMULATED"
+                        ? "border-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 font-bold"
+                        : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400"
+                        }`}
                     >
                       <Sparkles className="w-5 h-5 text-amber-500" />
                       <span className="text-xs">Instant Demo</span>
