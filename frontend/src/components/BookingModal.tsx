@@ -26,6 +26,7 @@ import {
   FileText,
 } from "lucide-react";
 import { loadRazorpayCheckoutScript, openRazorpayCheckout } from "@/lib/payments/razorpayClient";
+import { calculateEndTime, formatConsultationWindow } from "@/lib/timeUtils";
 
 interface BookingModalProps {
   doctor: Doctor | null;
@@ -168,6 +169,9 @@ export function BookingModal({ doctor, isOpen, onClose, onSuccess }: BookingModa
           patientPhone: "+1 (555) 019-2834",
           date,
           time: selectedSlot,
+          startTime: selectedSlot,
+          endTime: calculateEndTime(selectedSlot, 30),
+          durationMinutes: 30,
           symptoms: symptoms || "Routine consultation & checkup",
           provider: selectedProvider,
         }),
@@ -353,7 +357,9 @@ export function BookingModal({ doctor, isOpen, onClose, onSuccess }: BookingModa
               <h4 className="text-2xl font-black text-slate-900 dark:text-white">Payment & Booking Confirmed!</h4>
               <p className="text-xs text-slate-600 dark:text-slate-400 max-w-md mx-auto">
                 Your online consultation with <span className="font-semibold text-slate-900 dark:text-white">{doctor.name}</span> has been confirmed for{" "}
-                <span className="font-bold text-emerald-700 dark:text-emerald-400">{successAppt.date} at {successAppt.timeSlot || successAppt.time}</span>.
+                <span className="font-bold text-emerald-700 dark:text-emerald-400">
+                  {successAppt.date} • {formatConsultationWindow(successAppt.startTime, successAppt.endTime, successAppt.timeSlot || successAppt.time)}
+                </span>.
               </p>
             </div>
 
@@ -474,24 +480,29 @@ export function BookingModal({ doctor, isOpen, onClose, onSuccess }: BookingModa
                             <Sun className="w-3.5 h-3.5 text-amber-500" />
                             <span>Morning Shift (09:00 AM - 12:00 PM)</span>
                           </div>
-                          <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                             {morningSlots.map((s) => {
                               const isAvail = s.isAvailable !== false && s.available !== false;
                               const isSelected = selectedSlot === s.time;
+                              const start = s.startTime || s.time;
+                              const end = s.endTime || calculateEndTime(s.time, 30);
                               return (
                                 <button
                                   type="button"
                                   key={s.time}
                                   disabled={!isAvail}
                                   onClick={() => setSelectedSlot(s.time)}
-                                  className={`p-2 rounded-xl text-xs font-semibold text-center transition border cursor-pointer ${isSelected
-                                    ? "bg-emerald-600 text-white border-emerald-600 shadow-sm"
+                                  className={`p-2.5 rounded-xl text-center transition border cursor-pointer flex flex-col items-center justify-center ${isSelected
+                                    ? "bg-emerald-600 text-white border-emerald-600 shadow-md ring-2 ring-emerald-500/20"
                                     : isAvail
                                       ? "bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 border-slate-200 dark:border-slate-700 hover:border-emerald-500 hover:bg-emerald-50/50"
                                       : "bg-slate-100 dark:bg-slate-800/40 text-slate-400 dark:text-slate-600 border-slate-100 dark:border-slate-800 cursor-not-allowed line-through"
                                     }`}
                                 >
-                                  {s.time}
+                                  <span className="text-xs font-bold leading-tight">{start}</span>
+                                  <span className={`text-[10px] mt-0.5 ${isSelected ? "text-emerald-100" : "text-slate-500 dark:text-slate-400"}`}>
+                                    to {end}
+                                  </span>
                                 </button>
                               );
                             })}
@@ -506,28 +517,48 @@ export function BookingModal({ doctor, isOpen, onClose, onSuccess }: BookingModa
                             <Sunset className="w-3.5 h-3.5 text-teal-500" />
                             <span>Afternoon Shift (02:00 PM - 05:00 PM)</span>
                           </div>
-                          <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                             {afternoonSlots.map((s) => {
                               const isAvail = s.isAvailable !== false && s.available !== false;
                               const isSelected = selectedSlot === s.time;
+                              const start = s.startTime || s.time;
+                              const end = s.endTime || calculateEndTime(s.time, 30);
                               return (
                                 <button
                                   type="button"
                                   key={s.time}
                                   disabled={!isAvail}
                                   onClick={() => setSelectedSlot(s.time)}
-                                  className={`p-2 rounded-xl text-xs font-semibold text-center transition border cursor-pointer ${isSelected
-                                    ? "bg-emerald-600 text-white border-emerald-600 shadow-sm"
+                                  className={`p-2.5 rounded-xl text-center transition border cursor-pointer flex flex-col items-center justify-center ${isSelected
+                                    ? "bg-emerald-600 text-white border-emerald-600 shadow-md ring-2 ring-emerald-500/20"
                                     : isAvail
                                       ? "bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 border-slate-200 dark:border-slate-700 hover:border-emerald-500 hover:bg-emerald-50/50"
                                       : "bg-slate-100 dark:bg-slate-800/40 text-slate-400 dark:text-slate-600 border-slate-100 dark:border-slate-800 cursor-not-allowed line-through"
                                     }`}
                                 >
-                                  {s.time}
+                                  <span className="text-xs font-bold leading-tight">{start}</span>
+                                  <span className={`text-[10px] mt-0.5 ${isSelected ? "text-emerald-100" : "text-slate-500 dark:text-slate-400"}`}>
+                                    to {end}
+                                  </span>
                                 </button>
                               );
                             })}
                           </div>
+                        </div>
+                      )}
+
+                      {/* Selected Window Summary Banner */}
+                      {selectedSlot && (
+                        <div className="p-3 bg-emerald-50/80 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 rounded-2xl flex items-center justify-between text-xs animate-in fade-in">
+                          <div className="flex items-center space-x-2 text-emerald-800 dark:text-emerald-300">
+                            <Clock className="w-4 h-4 text-emerald-600 shrink-0" />
+                            <span>
+                              Consultation Window: <strong>{selectedSlot} – {calculateEndTime(selectedSlot, 30)}</strong>
+                            </span>
+                          </div>
+                          <span className="px-2.5 py-1 rounded-full bg-emerald-600 text-white font-bold text-[10px] tracking-wide shadow-xs">
+                            30 mins
+                          </span>
                         </div>
                       )}
                     </div>
@@ -578,9 +609,22 @@ export function BookingModal({ doctor, isOpen, onClose, onSuccess }: BookingModa
                   />
                 </div>
 
-                <div className="p-3 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200 dark:border-slate-700 text-xs flex items-center justify-between">
-                  <span className="text-slate-500">Selected Time:</span>
-                  <span className="font-bold text-slate-900 dark:text-white">{date} at {selectedSlot}</span>
+                <div className="p-3.5 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-200 dark:border-slate-700 text-xs space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-500">Consultation Date:</span>
+                    <span className="font-bold text-slate-900 dark:text-white">{date}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-500">Consultation Window:</span>
+                    <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                      {selectedSlot} – {calculateEndTime(selectedSlot, 30)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-[11px] pt-1.5 border-t border-slate-200/60 dark:border-slate-700/60">
+                    <span className="text-slate-500">Start Time: <strong className="text-slate-800 dark:text-slate-200">{selectedSlot}</strong></span>
+                    <span className="text-slate-500">End Time: <strong className="text-slate-800 dark:text-slate-200">{calculateEndTime(selectedSlot, 30)}</strong></span>
+                    <span className="px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 font-semibold text-[10px]">30 mins</span>
+                  </div>
                 </div>
 
                 <div className="pt-2 flex items-center justify-between border-t border-slate-100 dark:border-slate-800">
@@ -626,8 +670,15 @@ export function BookingModal({ doctor, isOpen, onClose, onSuccess }: BookingModa
                     <span className="font-bold text-slate-900 dark:text-white">{doctor.name}</span>
                   </div>
                   <div className="flex justify-between items-center text-slate-600 dark:text-slate-300">
-                    <span>Scheduled Schedule:</span>
-                    <span className="font-bold text-slate-900 dark:text-white">{date} at {selectedSlot}</span>
+                    <span>Consultation Window:</span>
+                    <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                      {date} • {selectedSlot} – {calculateEndTime(selectedSlot, 30)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center text-[11px] text-slate-500 pb-1">
+                    <span>Start: <strong className="text-slate-800 dark:text-slate-200">{selectedSlot}</strong></span>
+                    <span>End: <strong className="text-slate-800 dark:text-slate-200">{calculateEndTime(selectedSlot, 30)}</strong></span>
+                    <span>Duration: <strong className="text-slate-800 dark:text-slate-200">30 mins</strong></span>
                   </div>
                   <div className="border-t border-slate-200 dark:border-slate-700 pt-2 flex justify-between items-center text-sm font-extrabold text-slate-900 dark:text-white">
                     <span>Total Consultation Fee:</span>

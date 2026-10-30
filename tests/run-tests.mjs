@@ -504,6 +504,28 @@ async function main() {
     if (!patchData.success) throw new Error('Failed to mark notifications as read');
   });
 
+  // 26. Consultation Start and End Time Window Verification
+  await runTest('Consultation Window verification: slots & appointments contain valid startTime, endTime, and duration', async () => {
+    // Check doctor slots
+    const docRes = await fetch(`${BASE_URL}/api/doctors/doc_1?date=${testDate}`);
+    const docData = await docRes.json();
+    if (!docData.slots || docData.slots.length === 0) throw new Error('No slots returned');
+    const firstSlot = docData.slots[0];
+    if (!firstSlot.startTime || !firstSlot.endTime) {
+      throw new Error(`Slot missing startTime or endTime: ${JSON.stringify(firstSlot)}`);
+    }
+
+    // Check appointment window persistence
+    if (!createdApptId) throw new Error('No created appointment ID');
+    const apptRes = await fetch(`${BASE_URL}/api/appointments`);
+    const apptData = await apptRes.json();
+    const appt = (apptData.appointments || apptData.data || []).find(a => a.id === createdApptId);
+    if (!appt) throw new Error('Created appointment not found in appointment list');
+    if (!appt.startTime || !appt.endTime || !appt.durationMinutes) {
+      throw new Error(`Appointment missing startTime, endTime or durationMinutes: ${JSON.stringify(appt)}`);
+    }
+  });
+
   console.log('\x1b[36m%s\x1b[0m', '-------------------------------------------------');
   const resultColor = passedTests === totalTests ? '\x1b[32m' : '\x1b[33m';
   console.log(`${resultColor}%s\x1b[0m`, `Test Results: ${passedTests} / ${totalTests} Tests Passed`);

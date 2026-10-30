@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Appointment, DoctorAvailability, PrescriptionItem } from "@/lib/types";
 import { useRole } from "@/components/RoleContext";
+import { formatConsultationWindow } from "@/lib/timeUtils";
 import {
   Calendar,
   Clock,
@@ -396,7 +397,7 @@ export default function DoctorDashboardPage() {
               <span>{activeQueuePatient.patientName}</span>
             </div>
             <p className="text-xs text-emerald-100 flex items-center space-x-4">
-              <span>Time: {activeQueuePatient.timeSlot || activeQueuePatient.time}</span>
+              <span>Time: {formatConsultationWindow(activeQueuePatient.startTime, activeQueuePatient.endTime, activeQueuePatient.timeSlot || activeQueuePatient.time)}</span>
               <span>•</span>
               <span>Reason: {activeQueuePatient.symptoms || "Regular Follow-up"}</span>
             </p>
@@ -602,7 +603,7 @@ export default function DoctorDashboardPage() {
                   </span>
                   <span className="flex items-center space-x-1.5 font-medium">
                     <Clock className="w-3.5 h-3.5 text-slate-400" />
-                    <span>{appt.timeSlot || appt.time}</span>
+                    <span>{formatConsultationWindow(appt.startTime, appt.endTime, appt.timeSlot || appt.time)}</span>
                   </span>
                   <span>Contact: {appt.patientEmail}</span>
                   <span className="text-slate-400 font-mono text-[11px]">Ref: {appt.id}</span>
@@ -673,7 +674,7 @@ export default function DoctorDashboardPage() {
                 <div>
                   <h3 className="font-bold text-sm tracking-wide">Doctor Consultation Desk & Prescription Builder</h3>
                   <p className="text-[11px] text-slate-400">
-                    Patient: {consultationAppt.patientName} • Token #OPD-{String(consultationAppt.tokenNumber || 1).padStart(2, "0")}
+                    Patient: {consultationAppt.patientName} • Token #OPD-{String(consultationAppt.tokenNumber || 1).padStart(2, "0")} • Slot: {formatConsultationWindow(consultationAppt.startTime, consultationAppt.endTime, consultationAppt.timeSlot || consultationAppt.time)}
                   </p>
                 </div>
               </div>

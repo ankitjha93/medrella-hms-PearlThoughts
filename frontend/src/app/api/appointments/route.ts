@@ -38,10 +38,13 @@ export async function POST(request: NextRequest) {
       date,
       time,
       timeSlot,
+      startTime,
+      endTime,
+      durationMinutes,
       symptoms,
     } = body;
 
-    const chosenTime = time || timeSlot;
+    const chosenTime = startTime || time || timeSlot;
 
     if (!patientId || !doctorId || !date || !chosenTime) {
       return NextResponse.json(
@@ -78,7 +81,9 @@ export async function POST(request: NextRequest) {
       doctorAvatar: doctor.avatar,
       date,
       time: chosenTime,
-      durationMinutes: 30,
+      startTime: startTime || chosenTime,
+      endTime,
+      durationMinutes: durationMinutes || 30,
       fee: doctor.consultationFee,
       symptoms: symptoms || 'General consultation',
     });

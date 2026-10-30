@@ -40,6 +40,7 @@ import {
   Undo2,
   CheckCircle2,
 } from "lucide-react";
+import { formatConsultationWindow } from "@/lib/timeUtils";
 
 export default function PatientAppointmentsPage() {
   const { currentUser, setRole } = useRole();
@@ -59,7 +60,7 @@ export default function PatientAppointmentsPage() {
   const [newDate, setNewDate] = useState<string>("");
   const [newTime, setNewTime] = useState<string>("");
   const [rescheduleReason, setRescheduleReason] = useState<string>("");
-  const [rescheduleSlots, setRescheduleSlots] = useState<{ time: string; available: boolean }[]>([]);
+  const [rescheduleSlots, setRescheduleSlots] = useState<{ time: string; available: boolean; startTime?: string; endTime?: string }[]>([]);
   const [loadingSlots, setLoadingSlots] = useState<boolean>(false);
   const [rescheduleSuccess, setRescheduleSuccess] = useState<string | null>(null);
 
@@ -565,7 +566,7 @@ export default function PatientAppointmentsPage() {
                     </span>
                     <span className="flex items-center space-x-1.5 font-medium">
                       <Clock className="w-3.5 h-3.5 text-slate-400" />
-                      <span>{appt.timeSlot || appt.time}</span>
+                      <span>{formatConsultationWindow(appt.startTime, appt.endTime, appt.timeSlot || appt.time)}</span>
                     </span>
                     <span className="text-slate-400 font-mono text-[11px]">Ref: {appt.id}</span>
                   </div>
@@ -675,7 +676,7 @@ export default function PatientAppointmentsPage() {
                               {appt.doctorName} • <span className="text-emerald-600 dark:text-emerald-400">{appt.doctorSpecialty}</span>
                             </div>
                             <div className="text-[11px] text-slate-400 flex items-center gap-2">
-                              <span>Encounter Date: {appt.date} ({appt.timeSlot || appt.time})</span>
+                              <span>Encounter Date: {appt.date} ({formatConsultationWindow(appt.startTime, appt.endTime, appt.timeSlot || appt.time)})</span>
                               <span>•</span>
                               <span className="font-mono">Ref: {appt.id}</span>
                             </div>
@@ -1111,7 +1112,7 @@ export default function PatientAppointmentsPage() {
                   {rescheduleAppt.doctorSpecialty || "Specialist"}
                 </div>
                 <div className="text-slate-500 dark:text-slate-400 flex flex-wrap items-center gap-3 pt-1">
-                  <span>Current: <strong className="text-slate-800 dark:text-slate-200">{rescheduleAppt.date}</strong> at <strong className="text-slate-800 dark:text-slate-200">{rescheduleAppt.timeSlot || rescheduleAppt.time}</strong></span>
+                  <span>Current: <strong className="text-slate-800 dark:text-slate-200">{rescheduleAppt.date}</strong> ({formatConsultationWindow(rescheduleAppt.startTime, rescheduleAppt.endTime, rescheduleAppt.timeSlot || rescheduleAppt.time)})</span>
                   <span>•</span>
                   <span>Token: <strong className="text-slate-800 dark:text-slate-200">#OPD-{String(rescheduleAppt.tokenNumber || 1).padStart(2, "0")}</strong></span>
                 </div>
@@ -1177,7 +1178,12 @@ export default function PatientAppointmentsPage() {
                               : "bg-slate-100 dark:bg-slate-800/40 text-slate-400 dark:text-slate-600 border-transparent cursor-not-allowed line-through"
                           }`}
                         >
-                          {slot.time}
+                          <span className="block font-bold">{slot.startTime || slot.time}</span>
+                          {slot.endTime && (
+                            <span className={`block text-[10px] ${newTime === slot.time ? "text-emerald-100" : "text-slate-400 dark:text-slate-500"}`}>
+                              to {slot.endTime}
+                            </span>
+                          )}
                         </button>
                       ))}
                     </div>
@@ -1259,7 +1265,7 @@ export default function PatientAppointmentsPage() {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-500">Schedule:</span>
-                  <span className="font-medium text-slate-800 dark:text-slate-200">{cancelModalAppt.date} at {cancelModalAppt.timeSlot || cancelModalAppt.time}</span>
+                  <span className="font-medium text-slate-800 dark:text-slate-200">{cancelModalAppt.date} • {formatConsultationWindow(cancelModalAppt.startTime, cancelModalAppt.endTime, cancelModalAppt.timeSlot || cancelModalAppt.time)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-500">Booking Reference:</span>

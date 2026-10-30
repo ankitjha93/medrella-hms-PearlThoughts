@@ -149,6 +149,8 @@ export interface Appointment {
   date: string; // "2026-10-28"
   time: string; // "10:00 AM"
   timeSlot?: string; // alias for time
+  startTime?: string; // "10:00 AM"
+  endTime?: string; // "10:30 AM"
   durationMinutes: number;
   fee: number;
   status: AppointmentStatus;
@@ -238,6 +240,8 @@ export interface HospitalKPIs {
 
 export interface TimeSlot {
   time: string;
+  startTime?: string;
+  endTime?: string;
   isAvailable: boolean;
   available?: boolean;
   appointmentId?: string;

@@ -13,12 +13,15 @@ export async function POST(request: NextRequest) {
       date,
       time,
       timeSlot,
+      startTime,
+      endTime,
+      durationMinutes,
       symptoms,
       provider,
       currency,
     } = body;
 
-    const chosenTime = time || timeSlot;
+    const chosenTime = startTime || time || timeSlot;
 
     if (!patientId || !doctorId || !date || !chosenTime) {
       return NextResponse.json(
@@ -35,6 +38,9 @@ export async function POST(request: NextRequest) {
       doctorId,
       date,
       time: chosenTime,
+      startTime: startTime || chosenTime,
+      endTime,
+      durationMinutes: durationMinutes || 30,
       symptoms,
       provider,
       currency: currency || 'USD',
