@@ -37,6 +37,7 @@ Current state, completed work, blockers, and next steps for **Medrella HMS**.
 | **Enterprise EMR: Patient, Doctor & Admin Modules** | ✅ Completed | 2026-10-29 | Danphe EMR alignment: MPI/MRN, EHR timeline, SOAP desk, Admin suite, billing ledger (TASK-006) |
 | **Production-Ready Supabase Auth & RBAC** | ✅ Completed | 2026-10-29 | `@supabase/ssr`, cookie lifecycle, middleware route guard, `/login`, `/signup`, schema.sql (TASK-007) |
 | **Enterprise Authentication Enhancements**| ✅ Completed | 2026-10-29 | Magic Link, password recovery, multi-role signup, entropy meter, profile portal (`/profile`) (TASK-008) |
+| **Payment Integration & Refund Management**| ✅ Completed | 2026-10-30 | Razorpay/Stripe, 10m slot hold, policy-based refund, automated reminders, notifications (TASK-009) |
 
 ---
 

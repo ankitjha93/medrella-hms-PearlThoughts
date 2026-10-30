@@ -37,6 +37,8 @@ import {
   CreditCard,
   ChevronRight,
   TrendingUp,
+  Undo2,
+  CheckCircle2,
 } from "lucide-react";
 
 export default function PatientAppointmentsPage() {
@@ -60,6 +62,19 @@ export default function PatientAppointmentsPage() {
   const [rescheduleSlots, setRescheduleSlots] = useState<{ time: string; available: boolean }[]>([]);
   const [loadingSlots, setLoadingSlots] = useState<boolean>(false);
   const [rescheduleSuccess, setRescheduleSuccess] = useState<string | null>(null);
+
+  // Cancellation & Refund Modal State (Day 4)
+  const [cancelModalAppt, setCancelModalAppt] = useState<Appointment | null>(null);
+  const [refundPreview, setRefundPreview] = useState<{
+    paidAmount: number;
+    refundAmount: number;
+    percentage: number;
+    policyTier: string;
+    policyReason: string;
+    hasOnlinePayment: boolean;
+  } | null>(null);
+  const [cancelReason, setCancelReason] = useState<string>("Personal schedule conflict");
+  const [cancelling, setCancelling] = useState<boolean>(false);
 
   useEffect(() => {
     fetchPatientData();
@@ -222,7 +237,52 @@ export default function PatientAppointmentsPage() {
     );
   };
 
+  const openCancelModal = async (appt: Appointment) => {
+    setCancelModalAppt(appt);
+    setCancelReason("Personal schedule conflict");
+    setRefundPreview(null);
+    try {
+      const res = await fetch(`/api/payments/refund?appointmentId=${appt.id}`);
+      const data = await res.json();
+      if (data.success) {
+        setRefundPreview(data);
+      }
+    } catch {
+      // fallback calculation
+    }
+  };
+
+  const handleConfirmCancelWithRefund = async () => {
+    if (!cancelModalAppt) return;
+    setCancelling(true);
+    try {
+      const res = await fetch('/api/payments/refund', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          appointmentId: cancelModalAppt.id,
+          reason: cancelReason,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to cancel appointment');
+      }
+      setCancelModalAppt(null);
+      await fetchPatientData();
+    } catch (err: any) {
+      alert(err.message || 'Error processing cancellation');
+    } finally {
+      setCancelling(false);
+    }
+  };
+
   const handleCancel = async (id: string) => {
+    const appt = appointments.find(a => a.id === id);
+    if (appt) {
+      openCancelModal(appt);
+      return;
+    }
     if (!confirm("Are you sure you want to cancel this appointment?")) return;
 
     setActionLoading(id);
@@ -481,6 +541,18 @@ export default function PatientAppointmentsPage() {
                         <span>Rescheduled</span>
                       </span>
                     )}
+                    {appt.paymentStatus === 'PAID' && (
+                      <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-md text-[11px] font-bold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                        <ShieldCheck className="w-3 h-3 text-emerald-600" />
+                        <span>Paid (${appt.fee || 75})</span>
+                      </span>
+                    )}
+                    {appt.refundStatus === 'SUCCEEDED' && (
+                      <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-md text-[11px] font-bold bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+                        <Undo2 className="w-3 h-3 text-blue-600" />
+                        <span>Refunded ${appt.refundAmount || appt.fee}</span>
+                      </span>
+                    )}
                   </div>
                   <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 mt-0.5">
                     {appt.doctorSpecialty || appt.doctor?.specialty || appt.doctor?.specialization || "Outpatient Clinical Consultation"}
@@ -543,10 +615,10 @@ export default function PatientAppointmentsPage() {
                     </button>
                     <button
                       disabled={actionLoading === appt.id}
-                      onClick={() => handleCancel(appt.id)}
-                      className="px-3.5 py-1.5 text-xs font-semibold text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-xl border border-red-200 dark:border-red-800 transition"
+                      onClick={() => openCancelModal(appt)}
+                      className="px-3.5 py-1.5 text-xs font-semibold text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-xl border border-red-200 dark:border-red-800 transition cursor-pointer"
                     >
-                      {actionLoading === appt.id ? "Cancelling..." : "Cancel Visit"}
+                      Cancel Visit & Refund
                     </button>
                   </>
                 )}
@@ -1152,6 +1224,144 @@ export default function PatientAppointmentsPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: CANCELLATION & REFUND POLICY MODAL (Day 4) */}
+      {cancelModalAppt && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="relative w-full max-w-lg bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-4 bg-slate-900 text-white">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-rose-500/20 text-rose-400 rounded-xl">
+                  <XCircle className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-base text-white">Cancel Consultation & Process Refund</h3>
+                  <p className="text-xs text-slate-400">Hospital Cancellation & Refund Policy Enforcement</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setCancelModalAppt(null)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              {/* Appointment summary */}
+              <div className="p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-200 dark:border-slate-700 text-xs space-y-1.5">
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Consultation:</span>
+                  <span className="font-bold text-slate-900 dark:text-white">{cancelModalAppt.doctorName} ({cancelModalAppt.doctorSpecialty})</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Schedule:</span>
+                  <span className="font-medium text-slate-800 dark:text-slate-200">{cancelModalAppt.date} at {cancelModalAppt.timeSlot || cancelModalAppt.time}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Booking Reference:</span>
+                  <span className="font-mono text-slate-700 dark:text-slate-300">{cancelModalAppt.id}</span>
+                </div>
+              </div>
+
+              {/* Policy Calculation Preview */}
+              {refundPreview ? (
+                <div className="space-y-3">
+                  <div className={`p-4 rounded-2xl border text-xs space-y-1.5 ${
+                    refundPreview.percentage === 100
+                      ? "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800 text-emerald-900 dark:text-emerald-200"
+                      : refundPreview.percentage > 0
+                      ? "bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-200"
+                      : "bg-rose-50 dark:bg-rose-950/40 border-rose-200 dark:border-rose-800 text-rose-900 dark:text-rose-200"
+                  }`}>
+                    <div className="flex items-center justify-between font-bold text-sm">
+                      <span>Eligible Refund ({refundPreview.percentage}% Policy)</span>
+                      <span className="font-extrabold text-base">${refundPreview.refundAmount.toFixed(2)} USD</span>
+                    </div>
+                    <p className="text-[11px] leading-relaxed opacity-90">{refundPreview.policyReason}</p>
+                  </div>
+
+                  <div className="text-[11px] text-slate-500 flex justify-between px-1">
+                    <span>Consultation Fee Paid: ${refundPreview.paidAmount.toFixed(2)}</span>
+                    <span>Refund Processing: Immediate Gateway Dispatch</span>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-3 bg-slate-50 dark:bg-slate-800/40 rounded-xl text-xs text-slate-500 animate-pulse text-center">
+                  Calculating hospital policy refund entitlement...
+                </div>
+              )}
+
+              {/* Cancellation Reason Selector */}
+              <div className="space-y-2">
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+                  Select Reason for Cancellation
+                </label>
+                <div className="flex flex-wrap gap-1.5">
+                  {[
+                    "Personal schedule conflict",
+                    "Feeling better / recovered",
+                    "Need to see different specialist",
+                    "Rescheduled to another week",
+                    "Emergency",
+                  ].map((r) => (
+                    <button
+                      key={r}
+                      type="button"
+                      onClick={() => setCancelReason(r)}
+                      className={`text-[11px] px-2.5 py-1 rounded-lg border transition cursor-pointer ${
+                        cancelReason === r
+                          ? "bg-rose-50 border-rose-300 text-rose-700 dark:bg-rose-950/40 dark:border-rose-800 dark:text-rose-300 font-bold"
+                          : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700"
+                      }`}
+                    >
+                      {r}
+                    </button>
+                  ))}
+                </div>
+                <textarea
+                  rows={2}
+                  value={cancelReason}
+                  onChange={(e) => setCancelReason(e.target.value)}
+                  placeholder="Additional feedback or cancellation details..."
+                  className="w-full p-2.5 border border-slate-300 dark:border-slate-700 rounded-xl text-xs bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder:text-slate-400 focus:ring-2 focus:ring-rose-500"
+                />
+              </div>
+
+              {/* Notice */}
+              <p className="text-[10px] text-slate-500 leading-tight">
+                * Note: Appointment cancellation frees your assigned OPD queue token and releases all scheduled automated reminders.
+              </p>
+
+              {/* Actions */}
+              <div className="flex items-center justify-end space-x-3 pt-3 border-t border-slate-200 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setCancelModalAppt(null)}
+                  className="px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white rounded-xl transition cursor-pointer"
+                >
+                  Keep Appointment
+                </button>
+                <button
+                  type="button"
+                  disabled={cancelling}
+                  onClick={handleConfirmCancelWithRefund}
+                  className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition shadow-sm flex items-center space-x-2 cursor-pointer"
+                >
+                  {cancelling ? (
+                    <span>Processing Refund...</span>
+                  ) : (
+                    <>
+                      <XCircle className="w-4 h-4" />
+                      <span>Confirm Cancellation & Refund</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

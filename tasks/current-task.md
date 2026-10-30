@@ -1,38 +1,47 @@
-# TASK-008: Enterprise Authentication Enhancements - Passwordless Magic Link, Password Recovery, Multi-Role Signup & User Profile Portal
+# TASK-009: Day 4 - Payment Integration, Refund Management, Notifications & Appointment Reminders
 
 ## 1. Overview & Objective
-Elevated the Medrella HMS Supabase authentication system into a modern, comprehensive, enterprise-grade healthcare security suite:
-1. **Passwordless Magic Link & OTP Login**: Seamless 1-click passwordless sign-in for patients and busy clinicians on `/login`.
-2. **Complete Password Recovery Suite**: Dedicated `/forgot-password` and `/reset-password` flows with cryptographic token exchange and validation.
-3. **Multi-Role Specialist & Patient Registration**: Flexible registration on `/signup` allowing new users to register as a **Patient** (with MRN generation) or a **Doctor / Specialist** (with medical specialty, license ID, and hospital affiliation).
-4. **Interactive Password Strength Meter**: Real-time visual entropy scoring (length, uppercase, digits, symbols) on registration, reset-password, and profile update forms.
-5. **OAuth 2.0 Social Sign-In**: "Continue with Google" and "Continue with GitHub" options via Supabase Auth with automatic profile provisioning.
-6. **User Profile & Security Management Portal (`/profile`)**: Dedicated user self-service portal to manage medical contact information, emergency kin, blood group, avatar presets, password changes, and active workstation session audit.
-7. **Workstation Security Guardrails & Route Protection**: Updated `middleware.ts` to protect `/profile` and allow public access to recovery routes, with direct links in `Navbar.tsx`.
+Implemented a production-grade healthcare payment, refund, notification, and automated reminder suite for **Medrella HMS**:
+1. **Online Consultation Payments**:
+   - Razorpay & Stripe integration with secure server-side order generation from database consultation fees (`POST /api/payments/create-order`).
+   - Server-side cryptographic signature verification (`POST /api/payments/verify`) using HMAC-SHA256 for Razorpay and session checking for Stripe.
+   - Temporary **Slot Locking / Hold Engine** with 10-minute TTL to strictly prevent overbooking and double-booking during checkout.
+   - Secure webhook processing (`POST /api/payments/webhook`) with signature verification, replay-attack prevention, and idempotent event processing.
+2. **Refund Management System**:
+   - Policy-driven refund calculation: **100% full refund** ($> 24$h before appointment), **50% partial refund** ($\le 24$h before appointment), and **0%** (post-appointment / no-show), with admin overrides (`GET & POST /api/payments/refund`).
+   - Decoupled status lifecycle: strictly separating `appointment.status = 'CANCELLED'` from `payment.refundStatus = 'PROCESSING' | 'SUCCEEDED' | 'FAILED'`.
+   - Cancellation & Refund Modal on patient appointments portal and real-time refund status badges.
+3. **Multi-Channel Notifications & Automated Reminders**:
+   - Multi-channel notification service (`NotificationService`) dispatching simulated email logs, in-app persistent alerts, and prepared for future SMS/WhatsApp connectors.
+   - Automated 24-hour and 1-hour pre-consultation reminder engine (`scheduleAppointmentReminders`, `processDueReminders`) with dynamic cancellation protection for cancelled/completed visits.
+   - Real-time notification center in `Navbar.tsx` dynamically connected to `/api/notifications`.
 
 ---
 
 ## 2. Acceptance Criteria Status
-- [x] `frontend/src/components/RoleContext.tsx` expanded with `signInWithMagicLink`, `resetPassword`, `updatePassword`, `updateProfile`, `signInWithOAuth`, and multi-role `signUp`.
-- [x] `frontend/src/app/forgot-password/page.tsx` created for email dispatch with confirmation state.
-- [x] `frontend/src/app/reset-password/page.tsx` created with live interactive password strength meter.
-- [x] `frontend/src/app/login/page.tsx` updated with 3 tabs (Password, Magic Link, Demo Personas) and OAuth buttons.
-- [x] `frontend/src/app/signup/page.tsx` updated with Patient vs Doctor Specialist tabs and live entropy scoring.
-- [x] `frontend/src/app/profile/page.tsx` created with Personal Details, Security Settings, and Active Sessions.
-- [x] `frontend/src/middleware.ts` updated to guard `/profile` and allow public access to `/forgot-password` and `/reset-password`.
-- [x] `frontend/src/components/Navbar.tsx` updated with direct link to `/profile` in user dropdown.
-- [x] `tests/run-tests.mjs` expanded with tests for `/forgot-password`, `/reset-password`, and `/profile` (18/18 PASS).
-- [x] Production build (`npm run build`) compiles all 28/28 routes with 0 TypeScript and 0 prerender errors.
+- [x] Extensible `PaymentGateway` interface created supporting Razorpay, Stripe, and Simulated Gateway (`frontend/src/lib/payments/gateway.ts`).
+- [x] Server-side consultation fee lookup from database with 10-minute slot hold TTL.
+- [x] Server-side signature verification with cryptographic HMAC-SHA256.
+- [x] Idempotent webhook event processor for `payment.captured` and `payment.failed`.
+- [x] Multi-tier cancellation and refund policy calculation with dedicated patient modal.
+- [x] Automated 24h & 1h appointment reminder scheduler and processor.
+- [x] Multi-channel notification service with in-app notification center integration.
+- [x] 25 of 25 automated integration tests passing (`tests/run-tests.mjs`).
+- [x] Production build passes with 0 TypeScript and 0 prerender errors across all 34 routes.
 
 ---
 
 ## 3. Key Implementation Files
-- `frontend/src/components/RoleContext.tsx`: Enhanced auth provider with full Supabase methods.
-- `frontend/src/app/forgot-password/page.tsx`: Password recovery email dispatch portal.
-- `frontend/src/app/reset-password/page.tsx`: Password reset page with real-time entropy scoring.
-- `frontend/src/app/login/page.tsx`: 3-tab login portal (Password, Magic Link, Demo Personas).
-- `frontend/src/app/signup/page.tsx`: Multi-role registration (Patient vs Doctor Specialist).
-- `frontend/src/app/profile/page.tsx`: Profile & Security management suite.
-- `frontend/src/middleware.ts`: Enhanced route protection and RBAC guards.
-- `frontend/src/components/Navbar.tsx`: Integrated profile portal link and workstation actions.
-- `tests/run-tests.mjs`: Automated integration test suite covering 18 critical scenarios.
+- `frontend/src/lib/payments/gateway.ts`: Unified payment gateway implementations (Razorpay, Stripe, Simulated).
+- `frontend/src/lib/notifications/service.ts`: Multi-channel communication service.
+- `frontend/src/lib/db.ts`: Payment records, slot holds, refund calculation, reminder scheduler, and notification storage.
+- `frontend/src/app/api/payments/create-order/route.ts`: Secure order generation and slot locking.
+- `frontend/src/app/api/payments/verify/route.ts`: Signature verification and booking confirmation.
+- `frontend/src/app/api/payments/webhook/route.ts`: Webhook signature check and idempotent processor.
+- `frontend/src/app/api/payments/refund/route.ts`: Policy calculation and refund execution.
+- `frontend/src/app/api/notifications/route.ts`: Notification retrieval and status updates.
+- `frontend/src/app/api/notifications/reminders/process/route.ts`: Automated reminder trigger.
+- `frontend/src/components/BookingModal.tsx`: 3-step checkout with live slot lock timer and provider selector.
+- `frontend/src/app/patient/page.tsx`: Cancellation & Refund modal and payment history badges.
+- `frontend/src/components/Navbar.tsx`: Live notification center integration.
+- `tests/run-tests.mjs`: Automated integration test suite covering 25 critical scenarios.

@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.9.0] - 2026-10-30
+### Added
+- **Payment Integration & Extensible Gateway (TASK-009)**:
+  - Created extensible `PaymentGateway` architecture (`src/lib/payments/gateway.ts`) supporting **Razorpay** (HMAC-SHA256 signature verification), **Stripe**, and zero-credential **Simulated Provider**.
+  - Server-side order creation (`POST /api/payments/create-order`) enforcing database doctor fee verification.
+  - Conflict-free **Slot Hold Engine** with 10-minute TTL to prevent double-booking and checkout race conditions.
+  - Cryptographic server-side payment verification (`POST /api/payments/verify`) transitioning appointments to `CONFIRMED`, assigning OPD tokens, generating paid invoices, and scheduling reminders.
+  - Secure webhook endpoint (`POST /api/payments/webhook`) with signature verification and idempotent event tracking (`payment.captured`, `payment.failed`).
+- **Multi-Tier Refund Management**:
+  - Implemented hospital policy refund calculations (`GET /api/payments/refund`): 100% full refund for cancellations $> 24$h prior, 50% partial refund for cancellations $\le 24$h, and 0% for past/completed visits.
+  - Decoupled appointment cancellation state from refund lifecycle (`POST /api/payments/refund`).
+  - Added interactive Cancellation & Refund Policy modal in the Patient Portal (`/patient`).
+  - Displayed refund and payment status badges on appointment cards and billing statements.
+- **Automated Appointment Reminders & Multi-Channel Notifications**:
+  - Multi-channel notification service (`src/lib/notifications/service.ts`) dispatching email logs, in-app alerts, and prepared for future SMS/WhatsApp connectors.
+  - Automated reminder scheduler creating 24-hour and 1-hour pre-visit alerts upon booking.
+  - Automatic reminder rescheduling and cancellation safeguard ensuring cancelled or completed visits never receive inappropriate alerts.
+  - Cron/automated processor endpoint (`POST /api/notifications/reminders/process`).
+  - Live notification center integration in `Navbar.tsx` dynamically linked to `/api/notifications`.
+- **Automated Integration Test Matrix**:
+  - Expanded test suite to **25 / 25 passing tests** (`tests/run-tests.mjs`).
+
+---
+
 ## [0.8.1] - 2026-10-29
 ### Fixed
 - **Tailwind CSS v4 Production Compilation on Vercel Deployment**:

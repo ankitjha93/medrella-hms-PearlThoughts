@@ -159,6 +159,12 @@ export interface Appointment {
   rescheduledAt?: string;
   previousDate?: string;
   previousTime?: string;
+  paymentId?: string;
+  paymentStatus?: PaymentStatus;
+  paymentProvider?: PaymentProvider;
+  refundStatus?: RefundStatus;
+  refundAmount?: number;
+  refundReason?: string;
   createdAt: string;
 }
 
@@ -240,9 +246,63 @@ export interface TimeSlot {
 
 export interface NotificationItem {
   id: string;
+  userId?: string; // patientId or doctorId
   title: string;
   message: string;
   timestamp: string;
   read: boolean;
-  type: 'APPOINTMENT' | 'PRESCRIPTION' | 'QUEUE' | 'BILLING' | 'ADMIN';
+  type: 'APPOINTMENT' | 'PRESCRIPTION' | 'QUEUE' | 'BILLING' | 'ADMIN' | 'PAYMENT' | 'REFUND' | 'REMINDER';
+  actionUrl?: string;
+}
+
+export type PaymentProvider = 'RAZORPAY' | 'STRIPE' | 'SIMULATED';
+export type PaymentStatus = 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED' | 'PARTIALLY_REFUNDED';
+export type RefundStatus = 'NONE' | 'REQUESTED' | 'PROCESSING' | 'SUCCEEDED' | 'FAILED';
+
+export interface PaymentRecord {
+  id: string;
+  orderId: string;
+  appointmentId: string;
+  patientId: string;
+  patientName: string;
+  patientEmail: string;
+  doctorId: string;
+  doctorName: string;
+  amount: number;
+  currency: string;
+  provider: PaymentProvider;
+  status: PaymentStatus;
+  transactionReference?: string;
+  paymentMethod?: string;
+  refundStatus: RefundStatus;
+  refundAmount?: number;
+  refundReason?: string;
+  providerRefundId?: string;
+  createdAt: string;
+  paidAt?: string;
+  refundedAt?: string;
+}
+
+export interface SlotHold {
+  slotKey: string; // `${doctorId}_${date}_${time}`
+  doctorId: string;
+  date: string;
+  time: string;
+  appointmentId: string;
+  expiresAt: number; // Unix timestamp in ms (10 min TTL)
+}
+
+export interface AppointmentReminder {
+  id: string;
+  appointmentId: string;
+  patientId: string;
+  patientEmail: string;
+  patientPhone?: string;
+  doctorName: string;
+  date: string;
+  time: string;
+  scheduledFor: string; // ISO date-time
+  type: 'REMINDER_24H' | 'REMINDER_1H';
+  status: 'SCHEDULED' | 'SENT' | 'CANCELLED';
+  sentAt?: string;
 }

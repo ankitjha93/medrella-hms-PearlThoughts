@@ -21,6 +21,7 @@ gantt
     Phase 8: Enterprise EMR Modules     :done, 2026-10-29, 2026-10-29
     Phase 9: Supabase Auth & RBAC       :done, 2026-10-29, 2026-10-29
     Phase 10: Auth Enhancements Suite   :done, 2026-10-29, 2026-10-29
+    Phase 11: Payments & Reminders      :done, 2026-10-30, 2026-10-30
 ```
 
 ---

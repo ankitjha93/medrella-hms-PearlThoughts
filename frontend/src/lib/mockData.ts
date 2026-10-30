@@ -1,4 +1,16 @@
-import { Doctor, DoctorAvailability, Appointment, User, PatientProfile, Department, BillingInvoice, AuditLog } from './types';
+import { 
+  Doctor, 
+  DoctorAvailability, 
+  Appointment, 
+  User, 
+  PatientProfile, 
+  Department, 
+  BillingInvoice, 
+  AuditLog,
+  PaymentRecord,
+  NotificationItem,
+  AppointmentReminder
+} from './types';
 
 export const INITIAL_USERS: User[] = [
   {
@@ -496,5 +508,118 @@ export const INITIAL_AUDIT_LOGS: AuditLog[] = [
     resource: 'Appointment apt_100',
     details: 'Prescription signed off with diagnosis: Mild Sinus Tachycardia.',
     severity: 'INFO',
+  },
+];
+
+export const INITIAL_PAYMENTS: PaymentRecord[] = [
+  {
+    id: 'pay_101',
+    orderId: 'order_rzp_mock_101',
+    appointmentId: 'apt_101',
+    patientId: 'pat_1',
+    patientName: 'John Doe',
+    patientEmail: 'john.doe@example.com',
+    doctorId: 'doc_1',
+    doctorName: 'Dr. Jane Smith',
+    amount: 75,
+    currency: 'USD',
+    provider: 'RAZORPAY',
+    status: 'PAID',
+    transactionReference: 'txn_mock_829148102',
+    paymentMethod: 'Razorpay UPI (Verified)',
+    refundStatus: 'NONE',
+    createdAt: '2026-10-26T14:30:00.000Z',
+    paidAt: '2026-10-26T14:31:00.000Z',
+  },
+  {
+    id: 'pay_102',
+    orderId: 'order_strp_mock_102',
+    appointmentId: 'apt_102',
+    patientId: 'pat_2',
+    patientName: 'Sarah Jenkins',
+    patientEmail: 'sarah.jenkins@medrella.com',
+    doctorId: 'doc_1',
+    doctorName: 'Dr. Jane Smith',
+    amount: 75,
+    currency: 'USD',
+    provider: 'STRIPE',
+    status: 'PAID',
+    transactionReference: 'pi_3Mtwx7MockTxn99',
+    paymentMethod: 'Stripe Credit Card (Visa •••• 4242)',
+    refundStatus: 'NONE',
+    createdAt: '2026-10-27T09:15:00.000Z',
+    paidAt: '2026-10-27T09:16:00.000Z',
+  },
+];
+
+export const INITIAL_NOTIFICATIONS: NotificationItem[] = [
+  {
+    id: 'notif-1',
+    userId: 'pat_1',
+    title: 'OPD Queue Active',
+    message: 'Dr. Jane Smith is currently serving Token #OPD-01 in Station 402.',
+    timestamp: 'Just now',
+    read: false,
+    type: 'QUEUE',
+    actionUrl: '/patient',
+  },
+  {
+    id: 'notif-2',
+    userId: 'pat_1',
+    title: 'Consultation & Payment Confirmed',
+    message: 'Payment of $75.00 via Razorpay confirmed for Cardiology consultation with Dr. Jane Smith.',
+    timestamp: '10 mins ago',
+    read: false,
+    type: 'PAYMENT',
+    actionUrl: '/patient',
+  },
+  {
+    id: 'notif-3',
+    userId: 'pat_1',
+    title: 'Prescription Slip Available',
+    message: 'Electronic health record and Rx medication slip signed off.',
+    timestamp: '1 hour ago',
+    read: true,
+    type: 'PRESCRIPTION',
+    actionUrl: '/patient',
+  },
+  {
+    id: 'notif-4',
+    userId: 'pat_1',
+    title: 'Appointment Reminder (24h Alert)',
+    message: 'Upcoming cardiology visit scheduled tomorrow with Dr. Jane Smith at Station 402.',
+    timestamp: '2 hours ago',
+    read: false,
+    type: 'REMINDER',
+    actionUrl: '/patient',
+  },
+];
+
+export const INITIAL_REMINDERS: AppointmentReminder[] = [
+  {
+    id: 'rem_1',
+    appointmentId: 'apt_101',
+    patientId: 'pat_1',
+    patientEmail: 'john.doe@example.com',
+    doctorName: 'Dr. Jane Smith',
+    date: '2026-10-28',
+    time: '10:00 AM',
+    scheduledFor: '2026-10-27T10:00:00.000Z',
+    type: 'REMINDER_24H',
+    status: 'SENT',
+    sentAt: '2026-10-27T10:00:05.000Z',
+  },
+  {
+    id: 'rem_2',
+    appointmentId: 'apt_101',
+    patientId: 'pat_1',
+    patientEmail: 'john.doe@example.com',
+    doctorName: 'Dr. Jane Smith',
+    date: '2026-10-28',
+    time: '10:00 AM',
+    scheduledFor: '2026-10-28T09:00:00.000Z',
+    type: 'REMINDER_1H',
+    status: 'SENT',
+    sentAt: '2026-10-28T09:00:02.000Z',
   },
 ];
