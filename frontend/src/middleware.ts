@@ -7,11 +7,9 @@ export async function middleware(request: NextRequest) {
 
   // If Supabase is configured, enforce production authentication & RBAC
   if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-    // 1. If user is signed in and visits login or signup, redirect to their role portal
+    // 1. If user is signed in and visits login or signup, redirect to the landing page
     if (user && (path === '/login' || path === '/signup')) {
-      if (role === 'ADMIN') return NextResponse.redirect(new URL('/admin', request.url));
-      if (role === 'DOCTOR') return NextResponse.redirect(new URL('/doctor', request.url));
-      return NextResponse.redirect(new URL('/patient', request.url));
+      return NextResponse.redirect(new URL('/', request.url));
     }
 
     // 2. Protected Routes

@@ -20,28 +20,34 @@ Implemented a production-grade healthcare payment, refund, notification, and aut
 
 ## 2. Acceptance Criteria Status
 - [x] Extensible `PaymentGateway` interface created supporting Razorpay, Stripe, and Simulated Gateway (`frontend/src/lib/payments/gateway.ts`).
+- [x] Dual-mode Razorpay payment integration with native client-side script loader (`razorpayClient.ts`) and modal checkout.
+- [x] Server-side live order creation and refund processing via Razorpay v1 REST API with HTTP Basic Auth and resilient simulation fallback.
 - [x] Server-side consultation fee lookup from database with 10-minute slot hold TTL.
-- [x] Server-side signature verification with cryptographic HMAC-SHA256.
+- [x] Server-side signature verification with cryptographic HMAC-SHA256 and timing-safe comparison.
 - [x] Idempotent webhook event processor for `payment.captured` and `payment.failed`.
 - [x] Multi-tier cancellation and refund policy calculation with dedicated patient modal.
 - [x] Automated 24h & 1h appointment reminder scheduler and processor.
 - [x] Multi-channel notification service with in-app notification center integration.
+- [x] Tailwind CSS v4 `@source` directives configured in `globals.css` ensuring zero-failure utility compilation on Vercel.
 - [x] 25 of 25 automated integration tests passing (`tests/run-tests.mjs`).
 - [x] Production build passes with 0 TypeScript and 0 prerender errors across all 34 routes.
 
 ---
 
 ## 3. Key Implementation Files
-- `frontend/src/lib/payments/gateway.ts`: Unified payment gateway implementations (Razorpay, Stripe, Simulated).
+- `frontend/src/lib/payments/gateway.ts`: Unified payment gateway implementations (Dual-mode Razorpay, Stripe, Simulated).
+- `frontend/src/lib/payments/razorpayClient.ts`: Dynamic client-side SDK loader (`checkout.js`) and modal controller.
 - `frontend/src/lib/notifications/service.ts`: Multi-channel communication service.
 - `frontend/src/lib/db.ts`: Payment records, slot holds, refund calculation, reminder scheduler, and notification storage.
-- `frontend/src/app/api/payments/create-order/route.ts`: Secure order generation and slot locking.
+- `frontend/src/app/api/payments/create-order/route.ts`: Secure order generation, slot locking, and client key distribution.
 - `frontend/src/app/api/payments/verify/route.ts`: Signature verification and booking confirmation.
 - `frontend/src/app/api/payments/webhook/route.ts`: Webhook signature check and idempotent processor.
 - `frontend/src/app/api/payments/refund/route.ts`: Policy calculation and refund execution.
 - `frontend/src/app/api/notifications/route.ts`: Notification retrieval and status updates.
 - `frontend/src/app/api/notifications/reminders/process/route.ts`: Automated reminder trigger.
-- `frontend/src/components/BookingModal.tsx`: 3-step checkout with live slot lock timer and provider selector.
+- `frontend/src/components/BookingModal.tsx`: 3-step checkout with live slot lock timer, Razorpay modal launcher, and graceful dismissal handling.
 - `frontend/src/app/patient/page.tsx`: Cancellation & Refund modal and payment history badges.
 - `frontend/src/components/Navbar.tsx`: Live notification center integration.
+- `frontend/src/app/globals.css`: Tailwind v4 `@source` directives ensuring utility compilation across subdirectories.
+- `frontend/.env.example` & `frontend/.env.local`: Razorpay API credential configuration and placeholders.
 - `tests/run-tests.mjs`: Automated integration test suite covering 25 critical scenarios.

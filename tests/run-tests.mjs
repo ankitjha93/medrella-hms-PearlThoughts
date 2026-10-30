@@ -32,8 +32,8 @@ async function runTest(title, testFn) {
 
 async function main() {
   let createdApptId = null;
-  let testSlot = '03:30 PM';
-  const testDate = '2026-11-05'; // Future test date
+  let testSlot = '09:00 AM';
+  const testDate = `2026-11-${String(10 + (Math.floor(Date.now() / 1000) % 18)).padStart(2, '0')}`;
 
   // 1. Health check
   await runTest('Server Health Check (HTTP 200 on /)', async () => {
@@ -313,7 +313,7 @@ async function main() {
 
   let paymentOrderId = null;
   let paymentApptId = null;
-  const paymentTestDate = '2026-11-20';
+  const paymentTestDate = `2026-12-${String(10 + (Math.floor(Date.now() / 1000) % 18)).padStart(2, '0')}`;
   const paymentTestTime = '11:00 AM';
 
   // 19. Payment Order Creation & Slot Holding
@@ -339,11 +339,14 @@ async function main() {
     }
 
     const data = await res.json();
-    if (!data.success || !data.orderId || !data.payment?.id || !data.appointment?.id) {
-      throw new Error('Order creation payload is missing orderId, payment, or appointment');
+    if (!data.success || !data.orderId || !data.payment?.id || !data.appointment?.id || !data.key) {
+      throw new Error('Order creation payload is missing orderId, payment, appointment, or client key');
+    }
+    if (data.payment.currency !== 'INR') {
+      throw new Error(`Expected Razorpay order currency to be INR, got ${data.payment.currency}`);
     }
     if (data.payment.amount !== 75) {
-      throw new Error(`Expected fee $75 from doctor record, got $${data.payment.amount}`);
+      throw new Error(`Expected fee 75 from doctor record, got ${data.payment.amount}`);
     }
     paymentOrderId = data.orderId;
     paymentApptId = data.appointment.id;
@@ -502,6 +505,28 @@ async function main() {
     if (!patchRes.ok) throw new Error(`HTTP ${patchRes.status} on markAll`);
     const patchData = await patchRes.json();
     if (!patchData.success) throw new Error('Failed to mark notifications as read');
+  });
+
+  // 26. Consultation Start and End Time Window Verification
+  await runTest('Consultation Window verification: slots & appointments contain valid startTime, endTime, and duration', async () => {
+    // Check doctor slots
+    const docRes = await fetch(`${BASE_URL}/api/doctors/doc_1?date=${testDate}`);
+    const docData = await docRes.json();
+    if (!docData.slots || docData.slots.length === 0) throw new Error('No slots returned');
+    const firstSlot = docData.slots[0];
+    if (!firstSlot.startTime || !firstSlot.endTime) {
+      throw new Error(`Slot missing startTime or endTime: ${JSON.stringify(firstSlot)}`);
+    }
+
+    // Check appointment window persistence
+    if (!createdApptId) throw new Error('No created appointment ID');
+    const apptRes = await fetch(`${BASE_URL}/api/appointments`);
+    const apptData = await apptRes.json();
+    const appt = (apptData.appointments || apptData.data || []).find(a => a.id === createdApptId);
+    if (!appt) throw new Error('Created appointment not found in appointment list');
+    if (!appt.startTime || !appt.endTime || !appt.durationMinutes) {
+      throw new Error(`Appointment missing startTime, endTime or durationMinutes: ${JSON.stringify(appt)}`);
+    }
   });
 
   console.log('\x1b[36m%s\x1b[0m', '-------------------------------------------------');

@@ -13,12 +13,15 @@ export async function POST(request: NextRequest) {
       date,
       time,
       timeSlot,
+      startTime,
+      endTime,
+      durationMinutes,
       symptoms,
       provider,
       currency,
     } = body;
 
-    const chosenTime = time || timeSlot;
+    const chosenTime = startTime || time || timeSlot;
 
     if (!patientId || !doctorId || !date || !chosenTime) {
       return NextResponse.json(
@@ -26,6 +29,8 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    const defaultCurrency = provider === 'RAZORPAY' ? 'INR' : 'USD';
 
     const result = await createPaymentOrder({
       patientId,
@@ -35,9 +40,12 @@ export async function POST(request: NextRequest) {
       doctorId,
       date,
       time: chosenTime,
+      startTime: startTime || chosenTime,
+      endTime,
+      durationMinutes: durationMinutes || 30,
       symptoms,
       provider,
-      currency: currency || 'USD',
+      currency: currency || defaultCurrency,
     });
 
     if (!result.success) {
@@ -56,6 +64,7 @@ export async function POST(request: NextRequest) {
         payment: result.payment,
         appointment: result.appointment,
         expiresAt: result.expiresAt,
+        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || process.env.RAZORPAY_KEY_ID || 'rzp_test_placeholder',
       },
       { status: 201 }
     );
@@ -66,3 +75,4 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+

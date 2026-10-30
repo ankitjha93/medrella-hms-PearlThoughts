@@ -128,14 +128,27 @@ function normalizeDoctor(d: Doctor): Doctor {
     bio: d.bio || d.about,
     reviewCount: d.reviewCount !== undefined ? d.reviewCount : d.reviewsCount,
     reviews: d.reviews || [],
+    languages: d.languages || ['English'],
+    acceptedInsurance: d.acceptedInsurance || ['Aetna', 'BlueCross BlueShield', 'Cigna', 'Medicare'],
+    nextAvailableSlot: d.nextAvailableSlot || 'Today, 10:30 AM',
   };
 }
 
+import { calculateEndTime, formatConsultationWindow } from './timeUtils';
+export { calculateEndTime, formatConsultationWindow };
+
 function normalizeAppointment(a: Appointment): Appointment {
+  const startTime = a.startTime || a.time || a.timeSlot || '10:00 AM';
+  const duration = a.durationMinutes || 30;
+  const endTime = a.endTime || calculateEndTime(startTime, duration);
   return {
     ...a,
     tokenNumber: a.tokenNumber || 1,
-    timeSlot: a.timeSlot || a.time,
+    time: a.time || startTime,
+    timeSlot: a.timeSlot || a.time || startTime,
+    startTime,
+    endTime,
+    durationMinutes: duration,
   };
 }
 
@@ -150,7 +163,10 @@ export function getDoctors(search?: string, specialty?: string): Doctor[] {
       d.name.toLowerCase().includes(q) || 
       d.specialization.toLowerCase().includes(q) ||
       (d.specialty && d.specialty.toLowerCase().includes(q)) ||
-      d.hospital.toLowerCase().includes(q)
+      d.hospital.toLowerCase().includes(q) ||
+      (d.about && d.about.toLowerCase().includes(q)) ||
+      (d.education && d.education.toLowerCase().includes(q)) ||
+      (d.conditions && d.conditions.some(c => c.toLowerCase().includes(q)))
     );
   }
 
@@ -232,11 +248,18 @@ export function createAppointment(data: Omit<Appointment, 'id' | 'createdAt' | '
   );
   const nextToken = (doctorAppointmentsOnDate.length || 0) + 1;
 
+  const startTime = data.startTime || data.time || data.timeSlot || '10:00 AM';
+  const duration = data.durationMinutes || 30;
+  const endTime = data.endTime || calculateEndTime(startTime, duration);
+
   const newAppointment: Appointment = {
     ...data,
     tokenNumber: data.tokenNumber || nextToken,
-    time: data.time || data.timeSlot || '10:00 AM',
-    timeSlot: data.timeSlot || data.time || '10:00 AM',
+    time: startTime,
+    timeSlot: startTime,
+    startTime,
+    endTime,
+    durationMinutes: duration,
     id: `apt_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
     status: 'CONFIRMED',
     createdAt: new Date().toISOString(),
@@ -319,6 +342,8 @@ export function rescheduleAppointment(
     date: newDate,
     time: newTime,
     timeSlot: newTime,
+    startTime: newTime,
+    endTime: calculateEndTime(newTime, current.durationMinutes || 30),
     tokenNumber: nextToken,
     rescheduledAt: new Date().toISOString(),
     symptoms: reason ? `${current.symptoms} (Rescheduled: ${reason})` : current.symptoms,
@@ -354,6 +379,8 @@ export function getAvailableSlots(doctorId: string, date: string): TimeSlot[] {
   if (isBlackedOut) {
     return DEFAULT_TIME_SLOTS.map(time => ({
       time,
+      startTime: time,
+      endTime: calculateEndTime(time, 30),
       isAvailable: false,
       available: false,
       period: time.includes('AM') ? 'MORNING' : 'AFTERNOON',
@@ -383,6 +410,8 @@ export function getAvailableSlots(doctorId: string, date: string): TimeSlot[] {
     const isFree = !bookedTimes.has(time) && !heldTimes.has(time);
     return {
       time,
+      startTime: time,
+      endTime: calculateEndTime(time, 30),
       isAvailable: isFree,
       available: isFree,
       period: time.includes('AM') ? 'MORNING' : 'AFTERNOON',
@@ -406,6 +435,18 @@ export function updateDoctorAvailability(doctorId: string, updated: DoctorAvaila
 // --- CREATE DOCTOR ---
 export function createDoctor(doctorData: Omit<Doctor, 'id' | 'rating' | 'reviewsCount' | 'reviews'>): Doctor {
   const db = loadDatabase();
+
+  // Deduplicate: If doctor with same name already exists, update record rather than appending duplicate
+  const existingIdx = db.doctors.findIndex(d => d.name.toLowerCase() === doctorData.name.toLowerCase());
+  if (existingIdx !== -1) {
+    db.doctors[existingIdx] = {
+      ...db.doctors[existingIdx],
+      ...doctorData,
+    };
+    saveDatabase(db);
+    return normalizeDoctor(db.doctors[existingIdx]);
+  }
+
   const newDoctor: Doctor = {
     ...doctorData,
     id: `doc_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
@@ -861,6 +902,9 @@ export async function createPaymentOrder(data: {
   doctorId: string;
   date: string;
   time: string;
+  startTime?: string;
+  endTime?: string;
+  durationMinutes?: number;
   symptoms?: string;
   provider?: PaymentProvider;
   currency?: string;
@@ -881,13 +925,16 @@ export async function createPaymentOrder(data: {
     return { success: false, error: 'Selected doctor not found' };
   }
   const fee = doctor.consultationFee || 75;
-  const currency = data.currency || 'USD';
   const provider = data.provider || 'RAZORPAY';
+  const currency = data.currency || (provider === 'RAZORPAY' ? 'INR' : 'USD');
 
   const appointmentId = `apt_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+  const startTime = data.startTime || data.time;
+  const duration = data.durationMinutes || 30;
+  const endTime = data.endTime || calculateEndTime(startTime, duration);
 
   // 2. Hold slot with 10-minute TTL (prevents overbooking)
-  const holdResult = createSlotHold(data.doctorId, data.date, data.time, appointmentId, 600);
+  const holdResult = createSlotHold(data.doctorId, data.date, startTime, appointmentId, 600);
   if (!holdResult.success) {
     return { success: false, error: holdResult.error };
   }
@@ -919,9 +966,11 @@ export async function createPaymentOrder(data: {
     doctorSpecialty: doctor.specialization,
     doctorAvatar: doctor.avatar,
     date: data.date,
-    time: data.time,
-    timeSlot: data.time,
-    durationMinutes: 30,
+    time: startTime,
+    timeSlot: startTime,
+    startTime,
+    endTime,
+    durationMinutes: duration,
     fee,
     status: 'PENDING',
     paymentStatus: 'PENDING',

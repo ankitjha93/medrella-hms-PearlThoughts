@@ -94,11 +94,11 @@ export default function SignUpPage() {
         setError(signUpError);
       } else {
         setSuccess(
-          `Account created successfully as ${role === 'DOCTOR' ? 'Doctor Specialist' : 'Patient'}! Redirecting to your dashboard...`
+          `Account created successfully as ${role === 'DOCTOR' ? 'Doctor Specialist' : 'Patient'}! Redirecting to home page...`
         );
         setTimeout(() => {
-          router.push(role === "DOCTOR" ? "/doctor" : "/patient");
-        }, 1500);
+          window.location.href = "/";
+        }, 1200);
       }
     } catch (err: any) {
       setError(err.message || "Failed to create account. Please try again.");
