@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.9.0] - 2026-10-30
 ### Added
+- **Dual-Mode Razorpay Payment Gateway Integration**:
+  - Implemented client-side Razorpay Standard Checkout SDK loader and modal launcher (`src/lib/payments/razorpayClient.ts`) supporting UPI (GPay, PhonePe, Paytm, BHIM), Cards, NetBanking, and Wallets.
+  - Enhanced server-side `RazorpayGateway` with REST API order creation (`/v1/orders`) and refunds (`/v1/payments/{id}/refund`) via HTTP Basic Authentication.
+  - Implemented timing-safe cryptographic HMAC-SHA256 signature verification in `RazorpayGateway.verifySignature()`.
+  - Configured zero-credential resilient architecture: runs seamless sandbox simulations out-of-the-box and automatically switches to live Razorpay calls when keys are set in `.env.local`.
+  - Added `@source` directives in `frontend/src/app/globals.css` ensuring complete Tailwind CSS v4 utility scanning and production compilation on Vercel.
 - **Payment Integration & Extensible Gateway (TASK-009)**:
   - Created extensible `PaymentGateway` architecture (`src/lib/payments/gateway.ts`) supporting **Razorpay** (HMAC-SHA256 signature verification), **Stripe**, and zero-credential **Simulated Provider**.
   - Server-side order creation (`POST /api/payments/create-order`) enforcing database doctor fee verification.

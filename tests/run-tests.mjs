@@ -32,8 +32,8 @@ async function runTest(title, testFn) {
 
 async function main() {
   let createdApptId = null;
-  let testSlot = '03:30 PM';
-  const testDate = '2026-11-05'; // Future test date
+  let testSlot = '09:00 AM';
+  const testDate = `2026-11-${String(10 + (Math.floor(Date.now() / 1000) % 18)).padStart(2, '0')}`;
 
   // 1. Health check
   await runTest('Server Health Check (HTTP 200 on /)', async () => {
@@ -313,7 +313,7 @@ async function main() {
 
   let paymentOrderId = null;
   let paymentApptId = null;
-  const paymentTestDate = '2026-11-20';
+  const paymentTestDate = `2026-12-${String(10 + (Math.floor(Date.now() / 1000) % 18)).padStart(2, '0')}`;
   const paymentTestTime = '11:00 AM';
 
   // 19. Payment Order Creation & Slot Holding
@@ -339,8 +339,8 @@ async function main() {
     }
 
     const data = await res.json();
-    if (!data.success || !data.orderId || !data.payment?.id || !data.appointment?.id) {
-      throw new Error('Order creation payload is missing orderId, payment, or appointment');
+    if (!data.success || !data.orderId || !data.payment?.id || !data.appointment?.id || !data.key) {
+      throw new Error('Order creation payload is missing orderId, payment, appointment, or client key');
     }
     if (data.payment.amount !== 75) {
       throw new Error(`Expected fee $75 from doctor record, got $${data.payment.amount}`);

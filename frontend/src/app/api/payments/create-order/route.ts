@@ -56,6 +56,7 @@ export async function POST(request: NextRequest) {
         payment: result.payment,
         appointment: result.appointment,
         expiresAt: result.expiresAt,
+        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || process.env.RAZORPAY_KEY_ID || 'rzp_test_placeholder',
       },
       { status: 201 }
     );
@@ -66,3 +67,4 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
