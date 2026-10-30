@@ -1,5 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAppointments, createAppointment, getDoctorById } from '@/lib/db';
+import { 
+  getAppointments, 
+  createAppointment, 
+  getDoctorById, 
+  isSlotAvailableForBooking,
+  scheduleAppointmentReminders,
+  addNotification
+} from '@/lib/db';
+import { NotificationService } from '@/lib/notifications/service';
 
 export async function GET(request: NextRequest) {
   try {
@@ -50,15 +58,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verify slot is not already booked (conflict prevention guardrail)
-    const existing = getAppointments({ doctorId });
-    const isConflict = existing.some(
-      a => a.date === date && (a.time === chosenTime || a.timeSlot === chosenTime) && a.status !== 'CANCELLED'
-    );
-
-    if (isConflict) {
+    // Verify slot is not already booked or held (conflict prevention guardrail)
+    const slotCheck = isSlotAvailableForBooking(doctorId, date, chosenTime);
+    if (!slotCheck.isAvailable) {
       return NextResponse.json(
-        { success: false, error: 'This time slot is already reserved. Please select another time slot.' },
+        { success: false, error: slotCheck.reason || 'This time slot is already reserved. Please select another time slot.' },
         { status: 409 }
       );
     }
@@ -78,6 +82,13 @@ export async function POST(request: NextRequest) {
       fee: doctor.consultationFee,
       symptoms: symptoms || 'General consultation',
     });
+
+    try {
+      scheduleAppointmentReminders(appointment);
+      NotificationService.notifyBookingConfirmation(appointment, undefined, addNotification);
+    } catch (notifErr) {
+      console.warn('Failed to schedule reminders or notifications on direct booking:', notifErr);
+    }
 
     return NextResponse.json({ success: true, appointment, data: appointment }, { status: 201 });
   } catch (error) {

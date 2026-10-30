@@ -40,32 +40,25 @@ export function Navbar() {
   const dropdownRef = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);
 
-  const [notifications, setNotifications] = useState<NotificationItem[]>([
-    {
-      id: "notif-1",
-      title: "OPD Queue Active",
-      message: "Dr. Jane Smith is currently serving Token #OPD-01 in Station 402.",
-      timestamp: "Just now",
-      read: false,
-      type: "QUEUE",
-    },
-    {
-      id: "notif-2",
-      title: "Consultation Confirmed",
-      message: "Your Cardiology consultation for John Doe is confirmed.",
-      timestamp: "10 mins ago",
-      read: false,
-      type: "APPOINTMENT",
-    },
-    {
-      id: "notif-3",
-      title: "Prescription Slip Available",
-      message: "Electronic health record and Rx medication slip signed off.",
-      timestamp: "1 hour ago",
-      read: true,
-      type: "PRESCRIPTION",
-    },
-  ]);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+
+  // Fetch real-time notifications
+  const fetchNotifications = async () => {
+    try {
+      const uId = currentUser.patientId || currentUser.doctorId || currentUser.id;
+      const res = await fetch(`/api/notifications?userId=${uId}`);
+      if (res.ok) {
+        const data = await res.json();
+        setNotifications(data.notifications || []);
+      }
+    } catch {
+      // ignore
+    }
+  };
+
+  useEffect(() => {
+    fetchNotifications();
+  }, [currentUser]);
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
@@ -82,8 +75,18 @@ export function Navbar() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const markAllRead = () => {
+  const markAllRead = async () => {
     setNotifications(notifications.map((n) => ({ ...n, read: true })));
+    try {
+      const uId = currentUser.patientId || currentUser.doctorId || currentUser.id;
+      await fetch('/api/notifications', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ markAll: true, userId: uId }),
+      });
+    } catch {
+      // ignore
+    }
   };
 
   const navLinks = [

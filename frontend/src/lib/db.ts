@@ -15,7 +15,14 @@ import {
   AuditLog,
   PatientProfile,
   HospitalKPIs,
-  SOAPEncounter
+  SOAPEncounter,
+  PaymentRecord,
+  SlotHold,
+  AppointmentReminder,
+  NotificationItem,
+  PaymentProvider,
+  PaymentStatus,
+  RefundStatus
 } from './types';
 import { 
   INITIAL_DOCTORS, 
@@ -24,8 +31,13 @@ import {
   INITIAL_DEPARTMENTS,
   INITIAL_INVOICES,
   INITIAL_AUDIT_LOGS,
-  INITIAL_PATIENT_PROFILES
+  INITIAL_PATIENT_PROFILES,
+  INITIAL_PAYMENTS,
+  INITIAL_NOTIFICATIONS,
+  INITIAL_REMINDERS
 } from './mockData';
+import { getPaymentGateway } from './payments/gateway';
+import { NotificationService } from './notifications/service';
 
 const DATA_DIR = process.env.VERCEL ? '/tmp' : path.join(process.cwd(), '.data');
 const DB_FILE = path.join(DATA_DIR, 'db.json');
@@ -38,6 +50,11 @@ interface DatabaseSchema {
   invoices: BillingInvoice[];
   auditLogs: AuditLog[];
   patientProfiles: PatientProfile[];
+  payments: PaymentRecord[];
+  slotHolds: SlotHold[];
+  processedWebhooks: string[];
+  reminders: AppointmentReminder[];
+  notifications: NotificationItem[];
 }
 
 // In-memory fallback / cache
@@ -58,6 +75,11 @@ function loadDatabase(): DatabaseSchema {
         invoices: parsed.invoices || [...INITIAL_INVOICES],
         auditLogs: parsed.auditLogs || [...INITIAL_AUDIT_LOGS],
         patientProfiles: parsed.patientProfiles || [...INITIAL_PATIENT_PROFILES],
+        payments: parsed.payments || [...INITIAL_PAYMENTS],
+        slotHolds: parsed.slotHolds || [],
+        processedWebhooks: parsed.processedWebhooks || [],
+        reminders: parsed.reminders || [...INITIAL_REMINDERS],
+        notifications: parsed.notifications || [...INITIAL_NOTIFICATIONS],
       };
       return cachedDb!;
     }
@@ -74,6 +96,11 @@ function loadDatabase(): DatabaseSchema {
     invoices: [...INITIAL_INVOICES],
     auditLogs: [...INITIAL_AUDIT_LOGS],
     patientProfiles: [...INITIAL_PATIENT_PROFILES],
+    payments: [...INITIAL_PAYMENTS],
+    slotHolds: [],
+    processedWebhooks: [],
+    reminders: [...INITIAL_REMINDERS],
+    notifications: [...INITIAL_NOTIFICATIONS],
   };
 
   saveDatabase(cachedDb);
@@ -239,6 +266,10 @@ export function updateAppointmentStatus(
     db.appointments[index].prescription = prescription;
   }
 
+  if (status === 'CANCELLED') {
+    cancelAppointmentReminders(id);
+  }
+
   saveDatabase(db);
   return normalizeAppointment(db.appointments[index]);
 }
@@ -293,8 +324,17 @@ export function rescheduleAppointment(
     symptoms: reason ? `${current.symptoms} (Rescheduled: ${reason})` : current.symptoms,
   };
 
+  const updatedAppt = normalizeAppointment(db.appointments[index]);
+
+  try {
+    rescheduleAppointmentReminders(updatedAppt);
+    NotificationService.notifyReschedule(updatedAppt, current.date, current.time, addNotification);
+  } catch (err) {
+    console.warn('Could not update reminders on reschedule:', err);
+  }
+
   saveDatabase(db);
-  return normalizeAppointment(db.appointments[index]);
+  return updatedAppt;
 }
 
 // --- DYNAMIC SLOTS GENERATOR ---
@@ -320,6 +360,12 @@ export function getAvailableSlots(doctorId: string, date: string): TimeSlot[] {
     }));
   }
 
+  // Clean up expired slot holds
+  const now = Date.now();
+  if (db.slotHolds && db.slotHolds.length > 0) {
+    db.slotHolds = db.slotHolds.filter(h => h.expiresAt > now);
+  }
+
   // Find existing bookings on this date for this doctor that are active
   const bookedTimes = new Set(
     db.appointments
@@ -327,12 +373,21 @@ export function getAvailableSlots(doctorId: string, date: string): TimeSlot[] {
       .map(a => a.time)
   );
 
-  return DEFAULT_TIME_SLOTS.map(time => ({
-    time,
-    isAvailable: !bookedTimes.has(time),
-    available: !bookedTimes.has(time),
-    period: time.includes('AM') ? 'MORNING' : 'AFTERNOON',
-  }));
+  const heldTimes = new Set(
+    (db.slotHolds || [])
+      .filter(h => h.doctorId === doctorId && h.date === date && h.expiresAt > now)
+      .map(h => h.time)
+  );
+
+  return DEFAULT_TIME_SLOTS.map(time => {
+    const isFree = !bookedTimes.has(time) && !heldTimes.has(time);
+    return {
+      time,
+      isAvailable: isFree,
+      available: isFree,
+      period: time.includes('AM') ? 'MORNING' : 'AFTERNOON',
+    };
+  });
 }
 
 // --- AVAILABILITY RULES ---
@@ -667,3 +722,797 @@ export function recordSOAPEncounter(
   saveDatabase(db);
   return { appointment: normalizeAppointment(appt), invoice };
 }
+
+// ============================================================================
+// --- DAY 4: PAYMENTS, SLOT LOCKING, REFUNDS, NOTIFICATIONS & REMINDERS ---
+// ============================================================================
+
+/**
+ * Clean up expired slot holds
+ */
+function cleanExpiredSlotHolds(db: DatabaseSchema) {
+  const now = Date.now();
+  if (db.slotHolds && db.slotHolds.length > 0) {
+    db.slotHolds = db.slotHolds.filter(h => h.expiresAt > now);
+  }
+}
+
+/**
+ * Creates a temporary slot hold (default 10 minutes TTL)
+ */
+export function createSlotHold(
+  doctorId: string,
+  date: string,
+  time: string,
+  appointmentId: string,
+  ttlSeconds: number = 600
+): { success: boolean; expiresAt: number; error?: string } {
+  const db = loadDatabase();
+  cleanExpiredSlotHolds(db);
+
+  const slotKey = `${doctorId}_${date}_${time}`;
+  const now = Date.now();
+
+  // 1. Check if slot is already booked and active
+  const isBooked = db.appointments.some(
+    a => a.doctorId === doctorId &&
+         a.date === date &&
+         (a.time === time || a.timeSlot === time) &&
+         a.status !== 'CANCELLED' &&
+         a.id !== appointmentId
+  );
+  if (isBooked) {
+    return { success: false, expiresAt: 0, error: 'This time slot is already booked.' };
+  }
+
+  // 2. Check if another patient is currently holding this slot
+  const existingHold = (db.slotHolds || []).find(
+    h => h.slotKey === slotKey && h.appointmentId !== appointmentId && h.expiresAt > now
+  );
+  if (existingHold) {
+    const remainingSecs = Math.max(1, Math.round((existingHold.expiresAt - now) / 1000));
+    return {
+      success: false,
+      expiresAt: existingHold.expiresAt,
+      error: `This time slot is temporarily reserved by another patient. Try again in ${remainingSecs} seconds.`,
+    };
+  }
+
+  // 3. Create or refresh hold
+  const expiresAt = now + ttlSeconds * 1000;
+  if (!db.slotHolds) db.slotHolds = [];
+  
+  // Remove any previous hold for this appointment
+  db.slotHolds = db.slotHolds.filter(h => h.appointmentId !== appointmentId);
+  db.slotHolds.push({
+    slotKey,
+    doctorId,
+    date,
+    time,
+    appointmentId,
+    expiresAt,
+  });
+
+  saveDatabase(db);
+  return { success: true, expiresAt };
+}
+
+/**
+ * Releases a slot hold manually or on abandonment
+ */
+export function releaseSlotHold(doctorId: string, date: string, time: string, appointmentId?: string): void {
+  const db = loadDatabase();
+  const slotKey = `${doctorId}_${date}_${time}`;
+  if (!db.slotHolds) return;
+
+  db.slotHolds = db.slotHolds.filter(h => {
+    if (appointmentId && h.appointmentId === appointmentId) return false;
+    if (h.slotKey === slotKey) return false;
+    return true;
+  });
+
+  saveDatabase(db);
+}
+
+/**
+ * Checks if a slot is completely available (not booked and not held by another)
+ */
+export function isSlotAvailableForBooking(
+  doctorId: string,
+  date: string,
+  time: string,
+  excludeAppointmentId?: string
+): { isAvailable: boolean; reason?: string } {
+  const db = loadDatabase();
+  cleanExpiredSlotHolds(db);
+  const now = Date.now();
+
+  const isBooked = db.appointments.some(
+    a => a.doctorId === doctorId &&
+         a.date === date &&
+         (a.time === time || a.timeSlot === time) &&
+         a.status !== 'CANCELLED' &&
+         a.id !== excludeAppointmentId
+  );
+  if (isBooked) {
+    return { isAvailable: false, reason: 'Slot is already booked.' };
+  }
+
+  const slotKey = `${doctorId}_${date}_${time}`;
+  const isHeld = (db.slotHolds || []).some(
+    h => h.slotKey === slotKey && h.appointmentId !== excludeAppointmentId && h.expiresAt > now
+  );
+  if (isHeld) {
+    return { isAvailable: false, reason: 'Slot is currently reserved by another patient in checkout.' };
+  }
+
+  return { isAvailable: true };
+}
+
+/**
+ * Creates an Online Consultation Payment Order securely on the backend
+ * and locks the time slot with a 10-minute hold TTL.
+ */
+export async function createPaymentOrder(data: {
+  patientId: string;
+  patientName: string;
+  patientEmail: string;
+  patientPhone?: string;
+  doctorId: string;
+  date: string;
+  time: string;
+  symptoms?: string;
+  provider?: PaymentProvider;
+  currency?: string;
+}): Promise<{
+  success: boolean;
+  orderId?: string;
+  payment?: PaymentRecord;
+  appointment?: Appointment;
+  expiresAt?: number;
+  error?: string;
+}> {
+  const db = loadDatabase();
+  cleanExpiredSlotHolds(db);
+
+  // 1. Fetch Doctor and verify fee
+  const doctor = db.doctors.find(d => d.id === data.doctorId);
+  if (!doctor) {
+    return { success: false, error: 'Selected doctor not found' };
+  }
+  const fee = doctor.consultationFee || 75;
+  const currency = data.currency || 'USD';
+  const provider = data.provider || 'RAZORPAY';
+
+  const appointmentId = `apt_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+
+  // 2. Hold slot with 10-minute TTL (prevents overbooking)
+  const holdResult = createSlotHold(data.doctorId, data.date, data.time, appointmentId, 600);
+  if (!holdResult.success) {
+    return { success: false, error: holdResult.error };
+  }
+
+  // 3. Create Gateway Order
+  const gateway = getPaymentGateway(provider);
+  const order = await gateway.createOrder({
+    amount: fee,
+    currency,
+    receipt: `rcpt_${appointmentId}`,
+    notes: {
+      doctorId: data.doctorId,
+      doctorName: doctor.name,
+      patientId: data.patientId,
+      patientName: data.patientName,
+      appointmentId,
+    },
+  });
+
+  // 4. Create Pending Appointment
+  const newAppointment: Appointment = {
+    id: appointmentId,
+    patientId: data.patientId,
+    patientName: data.patientName,
+    patientEmail: data.patientEmail,
+    patientPhone: data.patientPhone || '+1 (555) 019-2834',
+    doctorId: data.doctorId,
+    doctorName: doctor.name,
+    doctorSpecialty: doctor.specialization,
+    doctorAvatar: doctor.avatar,
+    date: data.date,
+    time: data.time,
+    timeSlot: data.time,
+    durationMinutes: 30,
+    fee,
+    status: 'PENDING',
+    paymentStatus: 'PENDING',
+    paymentProvider: provider,
+    refundStatus: 'NONE',
+    symptoms: data.symptoms || 'General OPD Consultation',
+    createdAt: new Date().toISOString(),
+  };
+
+  // 5. Create Payment Record
+  const newPayment: PaymentRecord = {
+    id: `pay_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+    orderId: order.orderId,
+    appointmentId,
+    patientId: data.patientId,
+    patientName: data.patientName,
+    patientEmail: data.patientEmail,
+    doctorId: data.doctorId,
+    doctorName: doctor.name,
+    amount: fee,
+    currency,
+    provider,
+    status: 'PENDING',
+    refundStatus: 'NONE',
+    createdAt: new Date().toISOString(),
+  };
+
+  newAppointment.paymentId = newPayment.id;
+
+  if (!db.payments) db.payments = [];
+  db.payments.unshift(newPayment);
+  db.appointments.unshift(newAppointment);
+
+  addAuditLog({
+    action: 'PAYMENT_ORDER_CREATED',
+    actor: { id: data.patientId, name: data.patientName, role: 'PATIENT' },
+    resource: `Order ${order.orderId} ($${fee} ${currency})`,
+    details: `Payment order initialized for consultation with ${doctor.name} on ${data.date} at ${data.time}. Slot locked for 10 minutes.`,
+    severity: 'INFO',
+  });
+
+  saveDatabase(db);
+
+  return {
+    success: true,
+    orderId: order.orderId,
+    payment: newPayment,
+    appointment: normalizeAppointment(newAppointment),
+    expiresAt: holdResult.expiresAt,
+  };
+}
+
+/**
+ * Server-side payment verification, appointment confirmation & receipt generation
+ */
+export async function verifyPayment(params: {
+  orderId: string;
+  paymentId: string;
+  signature: string;
+  provider?: PaymentProvider;
+  paymentMethod?: string;
+}): Promise<{
+  success: boolean;
+  payment?: PaymentRecord;
+  appointment?: Appointment;
+  invoice?: BillingInvoice;
+  error?: string;
+}> {
+  const db = loadDatabase();
+  const payment = (db.payments || []).find(p => p.orderId === params.orderId);
+
+  if (!payment) {
+    return { success: false, error: 'Payment order record not found.' };
+  }
+
+  // Idempotency: If already paid, return existing verified state
+  if (payment.status === 'PAID') {
+    const appt = db.appointments.find(a => a.id === payment.appointmentId);
+    const inv = db.invoices.find(i => i.appointmentId === payment.appointmentId);
+    return {
+      success: true,
+      payment,
+      appointment: appt ? normalizeAppointment(appt) : undefined,
+      invoice: inv,
+    };
+  }
+
+  const provider = params.provider || payment.provider || 'RAZORPAY';
+  const gateway = getPaymentGateway(provider);
+
+  const isValid = gateway.verifySignature({
+    orderId: params.orderId,
+    paymentId: params.paymentId,
+    signature: params.signature,
+  });
+
+  if (!isValid) {
+    payment.status = 'FAILED';
+    saveDatabase(db);
+    return { success: false, error: 'Invalid payment signature or tamper detected.' };
+  }
+
+  // Signature verified!
+  const now = new Date().toISOString();
+  payment.status = 'PAID';
+  payment.paidAt = now;
+  payment.transactionReference = params.paymentId;
+  payment.paymentMethod = params.paymentMethod || `${provider} Online Checkout`;
+
+  // Update appointment status to CONFIRMED and assign token
+  const apptIndex = db.appointments.findIndex(a => a.id === payment.appointmentId);
+  let appointment: Appointment | undefined;
+
+  if (apptIndex !== -1) {
+    const existing = db.appointments[apptIndex];
+    const doctorAppointmentsOnDate = db.appointments.filter(
+      a => a.doctorId === existing.doctorId && a.date === existing.date && a.status !== 'CANCELLED' && a.id !== existing.id
+    );
+    const nextToken = (doctorAppointmentsOnDate.length || 0) + 1;
+
+    db.appointments[apptIndex] = {
+      ...existing,
+      status: 'CONFIRMED',
+      paymentStatus: 'PAID',
+      tokenNumber: existing.tokenNumber || nextToken,
+    };
+    appointment = normalizeAppointment(db.appointments[apptIndex]);
+
+    // Release slot hold since the appointment is confirmed
+    releaseSlotHold(existing.doctorId, existing.date, existing.time, existing.id);
+  }
+
+  // Auto-generate or mark Paid Billing Invoice
+  let invoice = db.invoices.find(i => i.appointmentId === payment.appointmentId);
+  if (!invoice && appointment) {
+    const patientProfile = db.patientProfiles?.find(p => p.id === appointment?.patientId);
+    invoice = {
+      id: `inv_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      invoiceNumber: `INV-2026-${1000 + (db.invoices.length + 1)}`,
+      appointmentId: appointment.id,
+      patientId: appointment.patientId,
+      patientName: appointment.patientName,
+      patientMRN: patientProfile?.mrn || 'MRN-2026-0941',
+      doctorId: appointment.doctorId,
+      doctorName: appointment.doctorName,
+      date: appointment.date,
+      items: [
+        {
+          id: `item_${Date.now()}`,
+          description: `Consultation Visit - ${appointment.doctorSpecialty} (${appointment.doctorName})`,
+          category: 'CONSULTATION',
+          quantity: 1,
+          unitPrice: payment.amount,
+          total: payment.amount,
+        },
+      ],
+      subtotal: payment.amount,
+      discount: 0,
+      tax: 0,
+      total: payment.amount,
+      status: 'PAID',
+      paymentMethod: payment.paymentMethod as any,
+      paidAt: now,
+      createdAt: now,
+    };
+    db.invoices.unshift(invoice);
+  } else if (invoice) {
+    invoice.status = 'PAID';
+    invoice.paidAt = now;
+  }
+
+  // Schedule automated appointment reminders (24h and 1h alerts)
+  if (appointment) {
+    scheduleAppointmentReminders(appointment);
+    // Dispatch Notifications
+    NotificationService.notifyBookingConfirmation(appointment, payment, addNotification);
+    NotificationService.notifyPaymentReceipt(payment, invoice, addNotification);
+  }
+
+  addAuditLog({
+    action: 'PAYMENT_VERIFIED_AND_CAPTURED',
+    actor: { id: payment.patientId, name: payment.patientName, role: 'PATIENT' },
+    resource: `Payment ${payment.id} (Txn: ${params.paymentId})`,
+    details: `Online payment of $${payment.amount} verified successfully via ${provider}. Appointment confirmed with OPD Token #${appointment?.tokenNumber || 1}.`,
+    severity: 'INFO',
+  });
+
+  saveDatabase(db);
+
+  return {
+    success: true,
+    payment,
+    appointment,
+    invoice,
+  };
+}
+
+/**
+ * Calculates Refund amount according to Medrella Cancellation Policy:
+ * - > 24 hours prior to appointment: 100% full refund
+ * - <= 24 hours prior but in future: 50% partial refund
+ * - Past appointment or completed: 0% refund
+ */
+export function calculateRefundPolicy(
+  appointment: Appointment,
+  amount: number
+): {
+  refundAmount: number;
+  percentage: number;
+  policyTier: 'FULL_REFUND_24H' | 'PARTIAL_REFUND_50' | 'NO_REFUND_PAST';
+  reason: string;
+} {
+  try {
+    const apptDateTime = new Date(`${appointment.date}T${convertTo24Hour(appointment.time)}`);
+    const now = new Date();
+    const diffHours = (apptDateTime.getTime() - now.getTime()) / (1000 * 60 * 60);
+
+    if (diffHours >= 24) {
+      return {
+        refundAmount: amount,
+        percentage: 100,
+        policyTier: 'FULL_REFUND_24H',
+        reason: 'Full 100% refund applied (Cancelled more than 24 hours prior to scheduled visit).',
+      };
+    } else if (diffHours > 0) {
+      const partial = Math.round(amount * 0.5 * 100) / 100;
+      return {
+        refundAmount: partial,
+        percentage: 50,
+        policyTier: 'PARTIAL_REFUND_50',
+        reason: '50% partial refund applied (Cancelled within 24 hours of scheduled consultation).',
+      };
+    } else {
+      return {
+        refundAmount: 0,
+        percentage: 0,
+        policyTier: 'NO_REFUND_PAST',
+        reason: 'No refund applicable (Scheduled consultation time has passed or visit completed).',
+      };
+    }
+  } catch {
+    return {
+      refundAmount: amount,
+      percentage: 100,
+      policyTier: 'FULL_REFUND_24H',
+      reason: 'Standard 100% full refund applied.',
+    };
+  }
+}
+
+function convertTo24Hour(timeStr: string): string {
+  try {
+    const [time, modifier] = timeStr.trim().split(' ');
+    let [hours, minutes] = time.split(':');
+    if (modifier === 'PM' && hours !== '12') hours = String(parseInt(hours, 10) + 12);
+    if (modifier === 'AM' && hours === '12') hours = '00';
+    return `${hours.padStart(2, '0')}:${minutes.padStart(2, '0')}:00`;
+  } catch {
+    return '10:00:00';
+  }
+}
+
+/**
+ * Executes refund processing according to hospital policy or admin override
+ */
+export async function processRefund(
+  appointmentId: string,
+  reason: string,
+  overrideAmount?: number
+): Promise<{
+  success: boolean;
+  payment?: PaymentRecord;
+  appointment?: Appointment;
+  refundAmount?: number;
+  error?: string;
+}> {
+  const db = loadDatabase();
+  const appointment = db.appointments.find(a => a.id === appointmentId);
+
+  if (!appointment) {
+    return { success: false, error: 'Appointment not found.' };
+  }
+
+  const payment = (db.payments || []).find(
+    p => p.appointmentId === appointmentId && (p.status === 'PAID' || p.status === 'PARTIALLY_REFUNDED')
+  );
+
+  if (!payment) {
+    // If appointment has no online payment record, still cancel appointment cleanly
+    appointment.status = 'CANCELLED';
+    appointment.cancellationReason = reason;
+    appointment.refundStatus = 'NONE';
+    cancelAppointmentReminders(appointmentId);
+    NotificationService.notifyCancellation(appointment, 0, addNotification);
+    saveDatabase(db);
+    return {
+      success: true,
+      appointment: normalizeAppointment(appointment),
+      refundAmount: 0,
+    };
+  }
+
+  if (payment.refundStatus === 'SUCCEEDED' && payment.status === 'REFUNDED') {
+    return { success: false, error: 'This payment has already been completely refunded.' };
+  }
+
+  // Calculate refund amount
+  const policy = calculateRefundPolicy(appointment, payment.amount);
+  const refundAmount = overrideAmount !== undefined ? overrideAmount : policy.refundAmount;
+
+  // Process with payment gateway
+  const gateway = getPaymentGateway(payment.provider);
+  const refundResult = await gateway.processRefund({
+    paymentId: payment.transactionReference || payment.id,
+    amount: refundAmount,
+    reason: reason || policy.reason,
+  });
+
+  const now = new Date().toISOString();
+  payment.refundStatus = refundResult.status;
+  payment.refundAmount = refundAmount;
+  payment.refundReason = reason || policy.reason;
+  payment.providerRefundId = refundResult.refundId;
+  payment.refundedAt = now;
+  payment.status = refundAmount >= payment.amount ? 'REFUNDED' : 'PARTIALLY_REFUNDED';
+
+  // Mark appointment cancelled
+  appointment.status = 'CANCELLED';
+  appointment.cancellationReason = reason;
+  appointment.refundStatus = refundResult.status;
+  appointment.refundAmount = refundAmount;
+  appointment.refundReason = reason || policy.reason;
+
+  // Update invoice if exists
+  const invoice = db.invoices.find(i => i.appointmentId === appointmentId);
+  if (invoice) {
+    invoice.status = 'CANCELLED';
+  }
+
+  // Immediately cancel all scheduled automated reminders
+  cancelAppointmentReminders(appointmentId);
+
+  // Dispatch notifications
+  NotificationService.notifyCancellation(appointment, refundAmount, addNotification);
+  if (refundAmount > 0) {
+    NotificationService.notifyRefund(payment, refundAmount, policy.reason, addNotification);
+  }
+
+  addAuditLog({
+    action: 'PAYMENT_REFUND_PROCESSED',
+    actor: { id: appointment.patientId, name: appointment.patientName, role: 'PATIENT' },
+    resource: `Refund ${refundResult.refundId} ($${refundAmount})`,
+    details: `Refund of $${refundAmount} processed via ${payment.provider} for Appointment ${appointmentId}. Reason: ${reason || policy.reason}.`,
+    severity: 'INFO',
+  });
+
+  saveDatabase(db);
+
+  return {
+    success: true,
+    payment,
+    appointment: normalizeAppointment(appointment),
+    refundAmount,
+  };
+}
+
+export function getPaymentByOrderId(orderId: string): PaymentRecord | null {
+  const db = loadDatabase();
+  return (db.payments || []).find(p => p.orderId === orderId) || null;
+}
+
+export function getPaymentByAppointmentId(appointmentId: string): PaymentRecord | null {
+  const db = loadDatabase();
+  return (db.payments || []).find(p => p.appointmentId === appointmentId) || null;
+}
+
+export function getPayments(filters?: { patientId?: string; doctorId?: string; appointmentId?: string }): PaymentRecord[] {
+  const db = loadDatabase();
+  let list = db.payments || [];
+
+  if (filters?.patientId) {
+    list = list.filter(p => p.patientId === filters.patientId);
+  }
+  if (filters?.doctorId) {
+    list = list.filter(p => p.doctorId === filters.doctorId);
+  }
+  if (filters?.appointmentId) {
+    list = list.filter(p => p.appointmentId === filters.appointmentId);
+  }
+
+  return list;
+}
+
+// ============================================================================
+// --- AUTOMATED APPOINTMENT REMINDERS ENGINE ---
+// ============================================================================
+
+export function scheduleAppointmentReminders(appointment: Appointment): AppointmentReminder[] {
+  const db = loadDatabase();
+  if (!db.reminders) db.reminders = [];
+
+  try {
+    const apptDateTime = new Date(`${appointment.date}T${convertTo24Hour(appointment.time)}`);
+    const now = Date.now();
+
+    const rem24hTime = new Date(apptDateTime.getTime() - 24 * 60 * 60 * 1000);
+    const rem1hTime = new Date(apptDateTime.getTime() - 60 * 60 * 1000);
+
+    const createdReminders: AppointmentReminder[] = [];
+
+    // Schedule 24H reminder
+    if (rem24hTime.getTime() > now) {
+      const r24: AppointmentReminder = {
+        id: `rem_${Date.now()}_24h`,
+        appointmentId: appointment.id,
+        patientId: appointment.patientId,
+        patientEmail: appointment.patientEmail,
+        patientPhone: appointment.patientPhone,
+        doctorName: appointment.doctorName,
+        date: appointment.date,
+        time: appointment.time,
+        scheduledFor: rem24hTime.toISOString(),
+        type: 'REMINDER_24H',
+        status: 'SCHEDULED',
+      };
+      db.reminders.push(r24);
+      createdReminders.push(r24);
+    }
+
+    // Schedule 1H reminder
+    if (rem1hTime.getTime() > now) {
+      const r1: AppointmentReminder = {
+        id: `rem_${Date.now()}_1h`,
+        appointmentId: appointment.id,
+        patientId: appointment.patientId,
+        patientEmail: appointment.patientEmail,
+        patientPhone: appointment.patientPhone,
+        doctorName: appointment.doctorName,
+        date: appointment.date,
+        time: appointment.time,
+        scheduledFor: rem1hTime.toISOString(),
+        type: 'REMINDER_1H',
+        status: 'SCHEDULED',
+      };
+      db.reminders.push(r1);
+      createdReminders.push(r1);
+    }
+
+    saveDatabase(db);
+    return createdReminders;
+  } catch (err) {
+    console.warn('Failed to calculate reminder timestamps:', err);
+    return [];
+  }
+}
+
+export function cancelAppointmentReminders(appointmentId: string): void {
+  const db = loadDatabase();
+  if (!db.reminders) return;
+
+  db.reminders = db.reminders.map(r => {
+    if (r.appointmentId === appointmentId && r.status === 'SCHEDULED') {
+      return { ...r, status: 'CANCELLED' };
+    }
+    return r;
+  });
+
+  saveDatabase(db);
+}
+
+export function rescheduleAppointmentReminders(appointment: Appointment): AppointmentReminder[] {
+  cancelAppointmentReminders(appointment.id);
+  return scheduleAppointmentReminders(appointment);
+}
+
+/**
+ * Cron / automated processor for pending reminders
+ */
+export function processDueReminders(): {
+  processedCount: number;
+  sentCount: number;
+  cancelledCount: number;
+} {
+  const db = loadDatabase();
+  if (!db.reminders) return { processedCount: 0, sentCount: 0, cancelledCount: 0 };
+
+  const now = new Date().toISOString();
+  let sentCount = 0;
+  let cancelledCount = 0;
+
+  for (let i = 0; i < db.reminders.length; i++) {
+    const reminder = db.reminders[i];
+    if (reminder.status === 'SCHEDULED' && reminder.scheduledFor <= now) {
+      // Check parent appointment status
+      const appt = db.appointments.find(a => a.id === reminder.appointmentId);
+      if (!appt || appt.status === 'CANCELLED' || appt.status === 'COMPLETED') {
+        // Inappropriate reminder prevented!
+        reminder.status = 'CANCELLED';
+        cancelledCount++;
+      } else {
+        reminder.status = 'SENT';
+        reminder.sentAt = now;
+        sentCount++;
+        NotificationService.notifyReminder(reminder, addNotification);
+      }
+    }
+  }
+
+  saveDatabase(db);
+  return { processedCount: sentCount + cancelledCount, sentCount, cancelledCount };
+}
+
+export function getReminders(patientId?: string): AppointmentReminder[] {
+  const db = loadDatabase();
+  let list = db.reminders || [];
+  if (patientId) {
+    list = list.filter(r => r.patientId === patientId);
+  }
+  return list;
+}
+
+// ============================================================================
+// --- NOTIFICATIONS & IN-APP ALERTS ---
+// ============================================================================
+
+export function getNotifications(userId?: string): NotificationItem[] {
+  const db = loadDatabase();
+  let list = db.notifications || [];
+  if (userId) {
+    list = list.filter(n => !n.userId || n.userId === userId);
+  }
+  return list;
+}
+
+export function markNotificationRead(id: string): boolean {
+  const db = loadDatabase();
+  const notif = (db.notifications || []).find(n => n.id === id);
+  if (!notif) return false;
+  notif.read = true;
+  saveDatabase(db);
+  return true;
+}
+
+export function markAllNotificationsRead(userId?: string): boolean {
+  const db = loadDatabase();
+  if (!db.notifications) return false;
+
+  db.notifications = db.notifications.map(n => {
+    if (!userId || !n.userId || n.userId === userId) {
+      return { ...n, read: true };
+    }
+    return n;
+  });
+
+  saveDatabase(db);
+  return true;
+}
+
+export function addNotification(
+  item: Omit<NotificationItem, 'id' | 'timestamp' | 'read'>
+): NotificationItem {
+  const db = loadDatabase();
+  if (!db.notifications) db.notifications = [];
+
+  const newNotif: NotificationItem = {
+    ...item,
+    id: `notif_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+    timestamp: 'Just now',
+    read: false,
+  };
+
+  db.notifications.unshift(newNotif);
+  saveDatabase(db);
+  return newNotif;
+}
+
+// ============================================================================
+// --- WEBHOOK IDEMPOTENCY ---
+// ============================================================================
+
+export function isWebhookProcessed(eventId: string): boolean {
+  const db = loadDatabase();
+  return Boolean(db.processedWebhooks && db.processedWebhooks.includes(eventId));
+}
+
+export function markWebhookProcessed(eventId: string): void {
+  const db = loadDatabase();
+  if (!db.processedWebhooks) db.processedWebhooks = [];
+  if (!db.processedWebhooks.includes(eventId)) {
+    db.processedWebhooks.push(eventId);
+    saveDatabase(db);
+  }
+}
+

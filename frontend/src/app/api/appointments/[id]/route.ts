@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { updateAppointmentStatus, rescheduleAppointment } from '@/lib/db';
+import { updateAppointmentStatus, rescheduleAppointment, processRefund } from '@/lib/db';
 
 export async function PATCH(
   request: NextRequest,
@@ -41,6 +41,17 @@ export async function PATCH(
         { success: false, error: 'Status is required' },
         { status: 400 }
       );
+    }
+
+    if (status === 'CANCELLED' && body.refund !== false) {
+      const refundRes = await processRefund(id, cancellationReason || 'Appointment cancelled', body.overrideAmount);
+      return NextResponse.json({
+        success: true,
+        appointment: refundRes.appointment,
+        refundAmount: refundRes.refundAmount,
+        payment: refundRes.payment,
+        data: refundRes.appointment,
+      });
     }
 
     const updated = updateAppointmentStatus(id, status, cancellationReason, prescription);

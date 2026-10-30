@@ -307,6 +307,203 @@ async function main() {
     if (res.status !== 200) throw new Error(`Expected HTTP 200, got ${res.status}`);
   });
 
+  // =========================================================================
+  // DAY 4: PAYMENTS, REFUNDS, NOTIFICATIONS & REMINDERS VERIFICATION
+  // =========================================================================
+
+  let paymentOrderId = null;
+  let paymentApptId = null;
+  const paymentTestDate = '2026-11-20';
+  const paymentTestTime = '11:00 AM';
+
+  // 19. Payment Order Creation & Slot Holding
+  await runTest('POST /api/payments/create-order creates order & locks slot with 10m TTL', async () => {
+    const res = await fetch(`${BASE_URL}/api/payments/create-order`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        doctorId: 'doc_1',
+        patientId: 'pat_1',
+        patientName: 'Payment Test Patient',
+        patientEmail: 'payment.test@medrella.com',
+        date: paymentTestDate,
+        time: paymentTestTime,
+        symptoms: 'Cardiology routine evaluation',
+        provider: 'RAZORPAY',
+      }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(`HTTP ${res.status} - ${err.error || 'Failed to create payment order'}`);
+    }
+
+    const data = await res.json();
+    if (!data.success || !data.orderId || !data.payment?.id || !data.appointment?.id) {
+      throw new Error('Order creation payload is missing orderId, payment, or appointment');
+    }
+    if (data.payment.amount !== 75) {
+      throw new Error(`Expected fee $75 from doctor record, got $${data.payment.amount}`);
+    }
+    paymentOrderId = data.orderId;
+    paymentApptId = data.appointment.id;
+  });
+
+  // 20. Overbooking / Hold Collision Guardrail
+  await runTest('Slot Hold Guardrail: Second checkout on held slot is rejected (HTTP 409 Conflict)', async () => {
+    const res = await fetch(`${BASE_URL}/api/payments/create-order`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        doctorId: 'doc_1',
+        patientId: 'pat_2',
+        patientName: 'Conflicting Patient',
+        patientEmail: 'conflict@medrella.com',
+        date: paymentTestDate,
+        time: paymentTestTime,
+        provider: 'RAZORPAY',
+      }),
+    });
+
+    if (res.status !== 409) {
+      throw new Error(`Expected HTTP 409 Conflict for held slot, got HTTP ${res.status}`);
+    }
+  });
+
+  // 21. Payment Verification & Reminder Scheduling
+  await runTest('POST /api/payments/verify confirms payment, assigns OPD token & schedules reminders', async () => {
+    const res = await fetch(`${BASE_URL}/api/payments/verify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        orderId: paymentOrderId,
+        paymentId: 'pay_rzp_mock_txn_999',
+        signature: 'valid_test_signature',
+        provider: 'RAZORPAY',
+        paymentMethod: 'Razorpay UPI (Verified)',
+      }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(`HTTP ${res.status} - ${err.error || 'Failed to verify payment'}`);
+    }
+
+    const data = await res.json();
+    if (!data.success || data.payment?.status !== 'PAID' || data.appointment?.status !== 'CONFIRMED') {
+      throw new Error('Payment was not marked PAID or appointment not marked CONFIRMED');
+    }
+    if (typeof data.appointment.tokenNumber !== 'number') {
+      throw new Error('Appointment did not receive an auto-assigned OPD token');
+    }
+  });
+
+  // 22. Webhook Idempotent Event Processing
+  await runTest('POST /api/payments/webhook handles events with signature & idempotency', async () => {
+    const webhookPayload = JSON.stringify({
+      id: `evt_test_${Date.now()}`,
+      event: 'payment.captured',
+      payload: {
+        payment: {
+          entity: {
+            id: 'pay_rzp_webhook_capture_1',
+            order_id: paymentOrderId,
+            amount: 7500,
+          },
+        },
+      },
+    });
+
+    // First delivery
+    const res1 = await fetch(`${BASE_URL}/api/payments/webhook`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-razorpay-signature': 'mock_webhook_signature',
+      },
+      body: webhookPayload,
+    });
+
+    if (!res1.ok) throw new Error(`HTTP ${res1.status} on initial webhook delivery`);
+    const data1 = await res1.json();
+    if (!data1.success) throw new Error('Failed to process webhook event');
+
+    // Duplicate delivery (Idempotency test)
+    const res2 = await fetch(`${BASE_URL}/api/payments/webhook`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-razorpay-signature': 'mock_webhook_signature',
+      },
+      body: webhookPayload,
+    });
+
+    if (!res2.ok) throw new Error(`HTTP ${res2.status} on duplicate webhook delivery`);
+    const data2 = await res2.json();
+    if (!data2.message?.includes('Idempotent')) {
+      throw new Error('Duplicate webhook was not detected as already processed (idempotency failure)');
+    }
+  });
+
+  // 23. Refund Policy Calculation & Decoupled Execution
+  await runTest('GET & POST /api/payments/refund calculates policy tiers (100%) and executes refund', async () => {
+    // 1. Preview Policy (future appointment > 24h -> 100% refund)
+    const previewRes = await fetch(`${BASE_URL}/api/payments/refund?appointmentId=${paymentApptId}`);
+    if (!previewRes.ok) throw new Error(`HTTP ${previewRes.status} on refund preview`);
+    const previewData = await previewRes.json();
+    if (previewData.percentage !== 100 || previewData.refundAmount !== 75) {
+      throw new Error(`Expected 100% refund ($75), got ${previewData.percentage}% ($${previewData.refundAmount})`);
+    }
+
+    // 2. Execute Refund
+    const refundRes = await fetch(`${BASE_URL}/api/payments/refund`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        appointmentId: paymentApptId,
+        reason: 'Patient cancelled visit via automated test suite',
+      }),
+    });
+
+    if (!refundRes.ok) throw new Error(`HTTP ${refundRes.status} on refund execution`);
+    const refundData = await refundRes.json();
+    if (!refundData.success || refundData.refundAmount !== 75) {
+      throw new Error('Refund execution did not return success or correct amount');
+    }
+    if (refundData.appointment?.status !== 'CANCELLED' || refundData.payment?.refundStatus !== 'SUCCEEDED') {
+      throw new Error('Appointment status is not CANCELLED or payment refundStatus is not SUCCEEDED');
+    }
+  });
+
+  // 24. Automated Reminder Processing & Cancellation Safeguard
+  await runTest('POST /api/notifications/reminders/process safeguards cancelled appointments', async () => {
+    const res = await fetch(`${BASE_URL}/api/notifications/reminders/process`, {
+      method: 'POST',
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    if (!data.success) throw new Error('Reminder processor failed to return success');
+  });
+
+  // 25. Multi-Channel Notifications Query & Mark As Read
+  await runTest('GET & PATCH /api/notifications returns real-time alerts and updates status', async () => {
+    const listRes = await fetch(`${BASE_URL}/api/notifications?userId=pat_1`);
+    if (!listRes.ok) throw new Error(`HTTP ${listRes.status}`);
+    const listData = await listRes.json();
+    if (!listData.success || !Array.isArray(listData.notifications)) {
+      throw new Error('Notifications list was invalid or empty');
+    }
+
+    const patchRes = await fetch(`${BASE_URL}/api/notifications`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ markAll: true, userId: 'pat_1' }),
+    });
+    if (!patchRes.ok) throw new Error(`HTTP ${patchRes.status} on markAll`);
+    const patchData = await patchRes.json();
+    if (!patchData.success) throw new Error('Failed to mark notifications as read');
+  });
+
   console.log('\x1b[36m%s\x1b[0m', '-------------------------------------------------');
   const resultColor = passedTests === totalTests ? '\x1b[32m' : '\x1b[33m';
   console.log(`${resultColor}%s\x1b[0m`, `Test Results: ${passedTests} / ${totalTests} Tests Passed`);
