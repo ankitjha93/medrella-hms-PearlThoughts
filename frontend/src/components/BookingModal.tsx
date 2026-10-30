@@ -158,6 +158,7 @@ export function BookingModal({ doctor, isOpen, onClose, onSuccess }: BookingModa
     setError(null);
 
     try {
+      const currency = selectedProvider === "RAZORPAY" ? "INR" : "USD";
       const res = await fetch("/api/payments/create-order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -174,6 +175,7 @@ export function BookingModal({ doctor, isOpen, onClose, onSuccess }: BookingModa
           durationMinutes: 30,
           symptoms: symptoms || "Routine consultation & checkup",
           provider: selectedProvider,
+          currency,
         }),
       });
 
@@ -195,6 +197,42 @@ export function BookingModal({ doctor, isOpen, onClose, onSuccess }: BookingModa
       setError(err.message || "Failed to initiate payment order");
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleSelectProvider = async (provider: PaymentProvider) => {
+    setSelectedProvider(provider);
+    if (orderId && provider !== selectedProvider && selectedSlot) {
+      try {
+        const currency = provider === "RAZORPAY" ? "INR" : "USD";
+        const res = await fetch("/api/payments/create-order", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            doctorId: doctor.id,
+            patientId: currentUser.patientId || "pat_1",
+            patientName: currentUser.name,
+            patientEmail: currentUser.email,
+            patientPhone: "+1 (555) 019-2834",
+            date,
+            time: selectedSlot,
+            startTime: selectedSlot,
+            endTime: calculateEndTime(selectedSlot, 30),
+            durationMinutes: 30,
+            symptoms: symptoms || "Routine consultation & checkup",
+            provider,
+            currency,
+          }),
+        });
+        const data = await res.json();
+        if (res.ok && data.orderId) {
+          setOrderId(data.orderId);
+          if (data.key) setRazorpayKey(data.key);
+          if (data.expiresAt) setSlotExpiresAt(data.expiresAt);
+        }
+      } catch (e) {
+        console.warn("Could not switch gateway order:", e);
+      }
     }
   };
 
@@ -381,7 +419,7 @@ export function BookingModal({ doctor, isOpen, onClose, onSuccess }: BookingModa
                 <span className="text-slate-500">Payment Status:</span>
                 <span className="font-bold text-emerald-600 flex items-center space-x-1">
                   <ShieldCheck className="w-3.5 h-3.5" />
-                  <span>PAID (${consultationFee} via {selectedProvider})</span>
+                  <span>PAID ({selectedProvider === "RAZORPAY" ? `₹${consultationFee} INR` : `$${consultationFee} USD`} via {selectedProvider})</span>
                 </span>
               </div>
               <div className="flex justify-between">
@@ -682,7 +720,9 @@ export function BookingModal({ doctor, isOpen, onClose, onSuccess }: BookingModa
                   </div>
                   <div className="border-t border-slate-200 dark:border-slate-700 pt-2 flex justify-between items-center text-sm font-extrabold text-slate-900 dark:text-white">
                     <span>Total Consultation Fee:</span>
-                    <span className="text-emerald-600 dark:text-emerald-400 text-base font-black">${consultationFee}.00 USD</span>
+                    <span className="text-emerald-600 dark:text-emerald-400 text-base font-black">
+                      {selectedProvider === "RAZORPAY" ? `₹${consultationFee} INR` : `$${consultationFee}.00 USD`}
+                    </span>
                   </div>
                 </div>
 
@@ -694,31 +734,31 @@ export function BookingModal({ doctor, isOpen, onClose, onSuccess }: BookingModa
                   <div className="grid grid-cols-3 gap-2">
                     <button
                       type="button"
-                      onClick={() => setSelectedProvider("RAZORPAY")}
+                      onClick={() => handleSelectProvider("RAZORPAY")}
                       className={`p-3 rounded-xl border text-center transition cursor-pointer flex flex-col items-center space-y-1 ${selectedProvider === "RAZORPAY"
                         ? "border-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 font-bold"
                         : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400"
                         }`}
                     >
                       <CreditCard className="w-5 h-5 text-emerald-600" />
-                      <span className="text-xs">Razorpay</span>
+                      <span className="text-xs">Razorpay (INR)</span>
                     </button>
 
                     <button
                       type="button"
-                      onClick={() => setSelectedProvider("STRIPE")}
+                      onClick={() => handleSelectProvider("STRIPE")}
                       className={`p-3 rounded-xl border text-center transition cursor-pointer flex flex-col items-center space-y-1 ${selectedProvider === "STRIPE"
                         ? "border-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 font-bold"
                         : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400"
                         }`}
                     >
                       <ShieldCheck className="w-5 h-5 text-blue-600" />
-                      <span className="text-xs">Stripe</span>
+                      <span className="text-xs">Stripe (USD)</span>
                     </button>
 
                     <button
                       type="button"
-                      onClick={() => setSelectedProvider("SIMULATED")}
+                      onClick={() => handleSelectProvider("SIMULATED")}
                       className={`p-3 rounded-xl border text-center transition cursor-pointer flex flex-col items-center space-y-1 ${selectedProvider === "SIMULATED"
                         ? "border-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 font-bold"
                         : "border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400"
@@ -729,6 +769,20 @@ export function BookingModal({ doctor, isOpen, onClose, onSuccess }: BookingModa
                     </button>
                   </div>
                 </div>
+
+                {/* Razorpay Test Mode Guidance Helper */}
+                {selectedProvider === "RAZORPAY" && (
+                  <div className="p-3 bg-blue-50/80 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900 rounded-xl text-xs text-blue-950 dark:text-blue-200 space-y-1">
+                    <div className="font-bold flex items-center space-x-1.5 text-blue-800 dark:text-blue-300">
+                      <CreditCard className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                      <span>Razorpay Test Credentials (INR Native Mode):</span>
+                    </div>
+                    <div className="text-[11px] text-blue-800 dark:text-blue-300 space-y-0.5">
+                      <p>• <strong>Card:</strong> <code className="font-mono bg-blue-100 dark:bg-blue-900/50 px-1 py-0.5 rounded font-bold">4111 1111 1111 1111</code> • Expiry: <code className="font-mono">12/30</code> • CVV: <code className="font-mono">123</code></p>
+                      <p>• <strong>UPI:</strong> <code className="font-mono bg-blue-100 dark:bg-blue-900/50 px-1 py-0.5 rounded">success@razorpay</code> • On OTP screen, click <strong>Success</strong></p>
+                    </div>
+                  </div>
+                )}
 
                 {/* Refund & Cancellation Policy Notice */}
                 <div className="p-3 bg-emerald-50/60 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/60 rounded-xl text-[11px] text-emerald-800 dark:text-emerald-300 space-y-1">
@@ -756,7 +810,13 @@ export function BookingModal({ doctor, isOpen, onClose, onSuccess }: BookingModa
                     className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold flex items-center space-x-2 transition shadow-sm cursor-pointer"
                   >
                     <Lock className="w-3.5 h-3.5" />
-                    <span>{submitting ? "Processing Payment..." : `Pay $${consultationFee}.00 & Confirm`}</span>
+                    <span>
+                      {submitting
+                        ? "Processing Payment..."
+                        : selectedProvider === "RAZORPAY"
+                        ? `Pay ₹${consultationFee} INR & Confirm`
+                        : `Pay $${consultationFee}.00 & Confirm`}
+                    </span>
                   </button>
                 </div>
               </div>

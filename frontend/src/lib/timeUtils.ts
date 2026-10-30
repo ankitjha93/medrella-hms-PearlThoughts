@@ -44,3 +44,4 @@ export function formatConsultationWindow(
   const end = endTime || calculateEndTime(start, durationMinutes);
   return `${start} – ${end}`;
 }
+

@@ -342,8 +342,11 @@ async function main() {
     if (!data.success || !data.orderId || !data.payment?.id || !data.appointment?.id || !data.key) {
       throw new Error('Order creation payload is missing orderId, payment, appointment, or client key');
     }
+    if (data.payment.currency !== 'INR') {
+      throw new Error(`Expected Razorpay order currency to be INR, got ${data.payment.currency}`);
+    }
     if (data.payment.amount !== 75) {
-      throw new Error(`Expected fee $75 from doctor record, got $${data.payment.amount}`);
+      throw new Error(`Expected fee 75 from doctor record, got ${data.payment.amount}`);
     }
     paymentOrderId = data.orderId;
     paymentApptId = data.appointment.id;

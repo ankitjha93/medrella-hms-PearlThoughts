@@ -907,8 +907,8 @@ export async function createPaymentOrder(data: {
     return { success: false, error: 'Selected doctor not found' };
   }
   const fee = doctor.consultationFee || 75;
-  const currency = data.currency || 'USD';
   const provider = data.provider || 'RAZORPAY';
+  const currency = data.currency || (provider === 'RAZORPAY' ? 'INR' : 'USD');
 
   const appointmentId = `apt_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
   const startTime = data.startTime || data.time;

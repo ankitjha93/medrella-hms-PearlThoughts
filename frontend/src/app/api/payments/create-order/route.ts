@@ -30,6 +30,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const defaultCurrency = provider === 'RAZORPAY' ? 'INR' : 'USD';
+
     const result = await createPaymentOrder({
       patientId,
       patientName: patientName || 'Patient',
@@ -43,7 +45,7 @@ export async function POST(request: NextRequest) {
       durationMinutes: durationMinutes || 30,
       symptoms,
       provider,
-      currency: currency || 'USD',
+      currency: currency || defaultCurrency,
     });
 
     if (!result.success) {
