@@ -128,6 +128,9 @@ function normalizeDoctor(d: Doctor): Doctor {
     bio: d.bio || d.about,
     reviewCount: d.reviewCount !== undefined ? d.reviewCount : d.reviewsCount,
     reviews: d.reviews || [],
+    languages: d.languages || ['English'],
+    acceptedInsurance: d.acceptedInsurance || ['Aetna', 'BlueCross BlueShield', 'Cigna', 'Medicare'],
+    nextAvailableSlot: d.nextAvailableSlot || 'Today, 10:30 AM',
   };
 }
 
@@ -160,7 +163,10 @@ export function getDoctors(search?: string, specialty?: string): Doctor[] {
       d.name.toLowerCase().includes(q) || 
       d.specialization.toLowerCase().includes(q) ||
       (d.specialty && d.specialty.toLowerCase().includes(q)) ||
-      d.hospital.toLowerCase().includes(q)
+      d.hospital.toLowerCase().includes(q) ||
+      (d.about && d.about.toLowerCase().includes(q)) ||
+      (d.education && d.education.toLowerCase().includes(q)) ||
+      (d.conditions && d.conditions.some(c => c.toLowerCase().includes(q)))
     );
   }
 
@@ -429,6 +435,18 @@ export function updateDoctorAvailability(doctorId: string, updated: DoctorAvaila
 // --- CREATE DOCTOR ---
 export function createDoctor(doctorData: Omit<Doctor, 'id' | 'rating' | 'reviewsCount' | 'reviews'>): Doctor {
   const db = loadDatabase();
+
+  // Deduplicate: If doctor with same name already exists, update record rather than appending duplicate
+  const existingIdx = db.doctors.findIndex(d => d.name.toLowerCase() === doctorData.name.toLowerCase());
+  if (existingIdx !== -1) {
+    db.doctors[existingIdx] = {
+      ...db.doctors[existingIdx],
+      ...doctorData,
+    };
+    saveDatabase(db);
+    return normalizeDoctor(db.doctors[existingIdx]);
+  }
+
   const newDoctor: Doctor = {
     ...doctorData,
     id: `doc_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,

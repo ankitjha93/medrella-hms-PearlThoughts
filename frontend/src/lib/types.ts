@@ -49,6 +49,10 @@ export interface Doctor {
   departmentCode?: string;
   roomNumber?: string;
   availableDays: string[]; // e.g. ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
+  conditions?: string[];
+  languages?: string[];
+  acceptedInsurance?: string[];
+  nextAvailableSlot?: string;
   reviews?: DoctorReview[];
 }
 
